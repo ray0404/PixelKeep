@@ -76,3 +76,6 @@ newUIelements/
 
 # Other reference files
 NoteAppPWAref.md
+
+# Firebase Hosting config
+firebase.json
