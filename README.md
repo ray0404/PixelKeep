@@ -6,6 +6,12 @@ A secure, offline-first Progressive Web App (PWA) for creating and managing encr
 
 ![Screenshot](newUIelements/new_robust_ui_elements_for_pixel.png)
 
+## Screenshots
+
+![Screenshot1](Screenshots/Screenshot1.jpg)
+![Screenshot2](Screenshots/Screenshot2.jpg)
+![Screenshot3](Screenshots/Screenshot3.jpg)
+
 ## Features
 
 *   **Offline First:** Fully functional without an internet connection thanks to a Service Worker.
