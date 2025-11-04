@@ -4,8 +4,6 @@
 
 A secure, offline-first Progressive Web App (PWA) for creating and managing encrypted notes and to-do lists with a retro "pixel art" aesthetic.
 
-![Screenshot](newUIelements/new_robust_ui_elements_for_pixel.png)
-
 ## Features
 
 *   **Offline First:** Fully functional without an internet connection thanks to a Service Worker.
