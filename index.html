@@ -1,0 +1,1373 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pixel PWA</title>
+
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#1e1b4b">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+
+    <!-- Unified Tailwind Config (Based on Pixel Keep) -->
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#4ade80", // Bright Pixel Green
+                        "secondary": "#a855f7", // Bright Pixel Purple
+                        "background-dark": "#1e1b4b", // Deep Indigo
+                        "surface": "#312e81", // Dark Indigo
+                        "text-light": "#f0fdf4", // Off-white/Light Green
+                        "text-meta": "#a5b4fc", // Lighter Indigo for meta
+                        "border-light": "#4f46e5", // Indigo Border
+                        "border-dark": "#1e1b4b", // Darker Indigo for inset effect
+                        "danger": "#ef4444", // Red
+                    },
+                    fontFamily: {
+                        "display": ['"Press Start 2P"', "cursive"],
+                    },
+                    boxShadow: {
+                        'pixel-btn': '2px 2px 0px 0px #1e1b4b',
+                        'pixel-btn-hover': '3px 3px 0px 0px #1e1b4b',
+                        'pixel-container': '4px 4px 0px 0px #1e1b4b',
+                        'pixel-container-inset': 'inset 2px 2px 0px 0px #1e1b4b, inset -2px -2px 0px 0px #4f46e5',
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0px",
+                    },
+                },
+            },
+        }
+    </script>
+
+    <!-- Custom Styles -->
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            font-size: 1.25rem;
+        }
+
+        body {
+            min-height: 100vh;
+            min-height: 100dvh;
+            background-image:
+                linear-gradient(rgba(30, 27, 75, 0.8), rgba(30, 27, 75, 0.8)),
+                url("data:image/svg+xml,%3Csvg width='6' height='6' viewBox='0 0 6 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23312e81' fill-opacity='0.4' fill-rule='evenodd'%3E%3Cpath d='M5 0h1L0 6V5zM6 5v1H5z'/%3E%3C/g%3E%3C/svg%3E");
+        }
+
+        .text-shadow-pixel {
+            text-shadow: 1px 1px 0px #1e1b4b;
+        }
+
+        /* Page Routing */
+        .page {
+            display: block;
+            min-height: calc(100vh - 120px); /* Full height minus header/nav */
+            max-width: 768px; /* Max width for content */
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .page.hidden {
+            display: none;
+        }
+        
+        /* Unified Form Input - CHANGED */
+        .pixel-input {
+           /* Removed conflicting @apply classes */
+           @apply h-12 w-full resize-none border-2 border-border-light px-4 shadow-pixel-container-inset focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary;
+           appearance: none; /* Manually add browser style reset */
+           background-color: #f0fdf4 !important; /* Light background (bg-text-light) */
+           color: #000000 !important; /* BLACK text, as requested */
+           font-size: 0.6rem; /* text-xs */
+        }
+        .pixel-input::placeholder {
+            color: #1e1b4b !important; /* Dark placeholder for light bg */
+            opacity: 0.6 !important;
+        }
+
+        .pixel-textarea {
+           /* Removed conflicting @apply classes */
+           @apply w-full border-2 border-border-light px-4 shadow-pixel-container-inset focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary;
+           padding-top: 0.75rem; /* Manually add vertical padding */
+           padding-bottom: 0.75rem; /* Manually add vertical padding */
+           background-color: #f0fdf4 !important; /* Light background (bg-text-light) */
+           color: #000000 !important; /* BLACK text, as requested */
+           font-size: 0.6rem; /* text-xs */
+           white-space: pre-wrap; /* Preserve whitespace and newlines */
+           word-wrap: break-word; /* Ensure long words break */
+           overflow-wrap: break-word; /* Ensure long words break */
+           word-break: break-all; /* Force words to break to prevent overflow */
+           max-width: 100%; /* Ensure it doesn't expand beyond its container */
+           box-sizing: border-box; /* Include padding and border in the element's total width and height */
+        }
+        .pixel-textarea::placeholder {
+            color: #1e1b4b !important; /* Dark placeholder for light bg */
+            opacity: 0.6 !important;
+        }
+
+        .pixel-textarea b {
+            font-weight: 900; /* Make bold text more prominent in editor */
+            font-size: 0.7rem; /* Slightly larger */
+        }
+
+        [contenteditable][placeholder]:empty:before {
+            content: attr(placeholder);
+            color: #1e1b4b !important; /* Dark placeholder for light bg */
+            opacity: 0.6 !important;
+            pointer-events: none;
+            display: block; /* For Firefox */
+        }
+
+        /* Special handling for date/time input */
+        input[type="datetime-local"] {
+            color-scheme: light; /* Set to light mode to match new light bg */
+        }
+        input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+            filter: none; /* Reset filter */
+        }
+
+        /* Pixel Button */
+        .pixel-button {
+            @apply flex items-center justify-center border-4 border-border-dark bg-primary text-background-dark shadow-pixel-container transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#1e1b4b] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none;
+        }
+        .pixel-button-secondary {
+            @apply pixel-button bg-secondary text-text-light;
+        }
+        .pixel-button-surface {
+             @apply flex size-10 cursor-pointer items-center justify-center border-2 border-border-light bg-surface text-text-light shadow-pixel-btn transition-all hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-pixel-btn-hover active:translate-x-[2px] active:translate-y-[2px] active:shadow-none;
+        }
+
+        .note-content-display {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-all; /* Ensure long words break */
+        }
+
+        .note-content-display img {
+            @apply my-4 border-4 border-border-dark shadow-pixel-container;
+        }
+        .note-content-display ul {
+            @apply my-4 list-disc pl-6;
+        }
+        .note-content-display li {
+            @apply mb-2;
+        }
+        .note-content-display b {
+            @apply text-primary;
+            font-weight: 900; /* Make bold text more prominent */
+            font-size: 0.7rem; /* Slightly larger */
+        }
+        .note-content-display i {
+            @apply text-secondary;
+        }
+        .note-preview-content {
+            display: -webkit-box;
+            -webkit-line-clamp: 8;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: normal;
+        }
+
+        .resize-handle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #4ade80;
+            border: 1px solid #1e1b4b;
+        }
+
+        .resize-handle-br {
+            bottom: -5px;
+            right: -5px;
+            cursor: se-resize;
+        }
+
+        .selected-image {
+            border: 2px solid #4ade80;
+        }
+
+        .crop-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .crop-box {
+            position: absolute;
+            border: 2px dashed #4ade80;
+            box-sizing: border-box;
+            cursor: move;
+        }
+
+        .crop-handle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #4ade80;
+            border: 1px solid #1e1b4b;
+        }
+
+        .crop-handle-tl {
+            top: -5px;
+            left: -5px;
+            cursor: nwse-resize;
+        }
+
+        .crop-handle-tr {
+            top: -5px;
+            right: -5px;
+            cursor: nesw-resize;
+        }
+
+        .crop-handle-bl {
+            bottom: -5px;
+            left: -5px;
+            cursor: nesw-resize;
+        }
+
+        .crop-handle-br {
+            bottom: -5px;
+            right: -5px;
+            cursor: nwse-resize;
+        }
+    </style>
+</head>
+
+<body class="bg-background-dark font-display text-text-light antialiased">
+
+    <!-- ===== Unlock Screen ===== -->
+    <div id="unlock-screen" class="flex min-h-screen flex-col items-center justify-center p-4">
+        <div class="flex flex-col items-center gap-4 rounded border-2 border-border-light bg-surface p-8 shadow-pixel-container">
+            <span class="material-symbols-outlined text-6xl text-primary">shield_lock</span>
+            <h1 class="text-lg font-bold uppercase text-primary text-shadow-pixel">Pixel Keep</h1>
+            <p class="text-xs text-text-meta">Enter your password to unlock.</p>
+            <input type="password" id="password-input" class="pixel-input text-center" placeholder="Your secret key..." />
+            <button id="unlock-button" class="pixel-button mt-4 h-14 w-full text-sm uppercase">Unlock</button>
+        </div>
+    </div>
+
+    <!-- ===== Camera Modal ===== -->
+    <div id="camera-modal" class="fixed inset-0 z-30 flex hidden items-center justify-center bg-background-dark/80">
+        <div class="flex flex-col items-center gap-4 rounded border-2 border-border-light bg-surface p-8 shadow-pixel-container">
+            <video id="camera-stream" class="w-full" autoplay></video>
+            <button id="capture-image-button" class="pixel-button mt-4 h-14 w-full text-sm uppercase">Capture</button>
+            <button id="cancel-camera-button" class="pixel-button-secondary mt-2 h-14 w-full text-sm uppercase">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Main App Container -->
+    <div id="app-container" class="relative flex min-h-screen w-full flex-col" style="display: none;">
+
+        <!-- ===== Global Header ===== -->
+        <header id="app-header" class="sticky top-0 z-10 flex items-center justify-between border-b-4 border-border-dark bg-surface p-4 pb-3 shadow-pixel-container">
+            <div class="flex size-10 shrink-0 items-center justify-center text-secondary">
+                <span class="material-symbols-outlined text-4xl" id="header-icon">shield_lock</span>
+            </div>
+            <h1 class="flex-1 text-center text-sm font-bold uppercase tracking-wider text-primary text-shadow-pixel" id="header-title">Pixel Keep</h1>
+            <div class="flex items-center justify-end gap-2">
+                <button id="export-button" class="pixel-button-surface"><span class="material-symbols-outlined">file_download</span></button>
+                <button id="import-button" class="pixel-button-surface"><span class="material-symbols-outlined">file_upload</span></button>
+                <input type="file" id="import-file-input" class="hidden" accept=".json">
+            </div>
+        </header>
+
+        <!-- ===== Page Container ===== -->
+        <main class="flex-grow pb-24">
+
+            <!-- ======================= -->
+            <!-- ===== NOTES LIST ===== -->
+            <!-- ======================= -->
+            <div id="page-notes-list" class="page p-4">
+                <!-- Search -->
+                <div class="relative py-3">
+                    <div class="absolute left-4 top-1/2 -translate-y-1/2 text-primary">
+                        <span class="material-symbols-outlined text-xl">search</span>
+                    </div>
+                    <input id="notes-search-input" class="pixel-input pl-12" placeholder="Search scrolls..." />
+                </div>
+
+                <!-- Notes Container -->
+                <div id="notes-list-container" class="flex flex-col gap-4 pt-2">
+                    <!-- Note items will be injected here by JS -->
+                </div>
+                
+                <!-- Empty State -->
+                <div id="notes-empty-state" class="mt-8 flex hidden flex-col items-center justify-center gap-4 border-2 border-dashed border-border-light/50 bg-surface/50 p-6 text-center">
+                    <span class="material-symbols-outlined text-6xl text-primary/70">inventory_2</span>
+                    <h3 class="text-sm font-bold text-text-light">Your scroll case is empty.</h3>
+                    <p class="max-w-xs text-xs leading-relaxed text-text-light/70">Tap the 'New Note' button to scribe a new scroll!</p>
+                </div>
+
+                <!-- FAB -->
+                <div class="fixed bottom-24 right-6 z-20">
+                    <button id="notes-add-new-button" class="pixel-button size-14">
+                        <span class="material-symbols-outlined text-4xl">add</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- =========================== -->
+            <!-- ===== NOTE DETAILS ===== -->
+            <!-- =========================== -->
+            <div id="page-note-details" class="page hidden p-4">
+                <p class="pb-4 pt-1 text-xs font-normal leading-normal text-text-meta" id="note-detail-meta">Last edited: ...</p>
+                <div class="flex items-center justify-between">
+                    <h2 class="mb-4 text-lg font-bold text-primary" id="note-detail-title">Note Title</h2>
+                    <button id="note-detail-copy-btn" class="pixel-button-surface"><span class="material-symbols-outlined">content_copy</span></button>
+                </div>
+                <div class="note-content-display mb-6 text-xs font-normal leading-relaxed text-text-light/90" id="note-detail-content">
+                    Note content...
+                </div>
+                <!-- Tags -->
+                <div class="flex flex-wrap gap-2" id="note-detail-tags">
+                    <!-- <span class="border-2 border-border-light bg-surface px-3 py-1 text-[10px] font-medium text-primary shadow-pixel-btn">#gamedev</span> -->
+                </div>
+            </div>
+
+            <!-- ========================= -->
+            <!-- ===== NOTE EDITOR ===== -->
+            <!-- ========================= -->
+            <div id="page-note-edit" class="page hidden p-4">
+                <form id="note-edit-form" class="flex flex-col gap-4">
+                    <input type="hidden" id="note-edit-id" value="">
+                    
+                    <label class="flex flex-col">
+                        <span class="pb-2 text-xs uppercase text-primary">Title</span>
+                        <input id="note-edit-title" class="pixel-input" placeholder="Enter Title..." value="" required/>
+                    </label>
+
+                    <div class="flex gap-4">
+                        <button type="button" id="note-add-image-gallery" class="pixel-button-surface flex-1">
+                            <span class="material-symbols-outlined">image</span>
+                        </button>
+                        <button type="button" id="note-add-image-camera" class="pixel-button-surface flex-1">
+                            <span class="material-symbols-outlined">photo_camera</span>
+                        </button>
+                    </div>
+                    
+                    <label class="flex flex-col">
+                         <span class="pb-2 text-xs uppercase text-primary">Content</span>
+                        <div class="flex items-center gap-2 border-2 border-border-light bg-surface p-2 shadow-pixel-btn">
+                            <button type="button" id="format-bold" class="pixel-button-surface"><span class="material-symbols-outlined">format_bold</span></button>
+                            <button type="button" id="format-italic" class="pixel-button-surface"><span class="material-symbols-outlined">format_italic</span></button>
+                            <button type="button" id="format-underline" class="pixel-button-surface"><span class="material-symbols-outlined">format_underlined</span></button>
+                            <button type="button" id="format-list" class="pixel-button-surface"><span class="material-symbols-outlined">format_list_bulleted</span></button>
+                            <button type="button" id="format-crop" class="pixel-button-surface"><span class="material-symbols-outlined">crop</span></button>
+                            <button type="button" id="format-focus" class="pixel-button-surface"><span class="material-symbols-outlined">center_focus_strong</span></button>
+                            <button type="button" id="format-done" class="pixel-button-surface"><span class="material-symbols-outlined">done</span></button>
+                        </div>
+                        <div id="note-edit-content" class="pixel-textarea min-h-[40vh]" contenteditable="true" placeholder="Your secure note starts here..."></div>
+                    </label>
+                    
+                    <label class="flex flex-col">
+                         <span class="pb-2 text-xs uppercase text-primary">Tags (comma separated)</span>
+                        <input id="note-edit-tags" class="pixel-input" placeholder="gamedev, ideas, etc..." value=""/>
+                    </label>
+
+                    <div class="flex flex-col gap-4 pt-4">
+                        <button type="submit" class="pixel-button h-14 text-sm uppercase">Save Scroll</button>
+                        <button type="button" id="note-edit-cancel" class="pixel-button-secondary h-14 text-sm uppercase">Cancel</button>
+                         <button type="button" id="note-edit-delete" class="pixel-button h-14 bg-danger text-text-light text-sm uppercase hidden">Delete Scroll</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- ======================== -->
+            <!-- ===== TO-DO LIST ===== -->
+            <!-- ======================== -->
+            <div id="page-todos-list" class="page hidden p-4">
+                <!-- Task List Container -->
+                <div id="todos-list-container" class="flex flex-col gap-4 pt-2">
+                    <!-- Task items will be injected here by JS -->
+                </div>
+
+                <!-- Empty State -->
+                <div id="todos-empty-state" class="mt-8 flex hidden flex-col items-center justify-center gap-4 border-2 border-dashed border-border-light/50 bg-surface/50 p-6 text-center">
+                    <span class="material-symbols-outlined text-6xl text-primary/70">fact_check</span>
+                    <h3 class="text-sm font-bold text-text-light">Your quest log is empty.</h3>
+                    <p class="max-w-xs text-xs leading-relaxed text-text-light/70">Tap the 'New Quest' button to add a new task!</p>
+                </div>
+                
+                <!-- FAB -->
+                <div class="fixed bottom-24 right-6 z-20">
+                    <button id="todos-add-new-button" class="pixel-button size-14">
+                        <span class="material-symbols-outlined text-4xl">add</span>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- ========================= -->
+            <!-- ===== TASK EDITOR ===== -->
+            <!-- ========================= -->
+            <div id="page-task-edit" class="page hidden p-4">
+                <form id="task-edit-form" class="flex flex-col gap-4">
+                    <input type="hidden" id="task-edit-id" value="">
+                    
+                    <label class="flex flex-col w-full">
+                        <p class="text-xs font-medium uppercase leading-normal pb-2 text-primary">Task</p>
+                        <input id="task-edit-title" class="pixel-input" placeholder="What needs to be done?" value="" required/>
+                    </label>
+                    
+                    <label class="flex flex-col w-full">
+                        <p class="text-xs font-medium uppercase leading-normal pb-2 text-primary">Time</p>
+                        <div class="flex w-full flex-1 items-stretch">
+                            <!-- ADDED [color-scheme:dark] back -->
+                            <input id="task-edit-time" type="datetime-local" class="pixel-input [color-scheme:dark]" placeholder="Select date & time" value=""/>
+                        </div>
+                    </label>
+
+                    <label class="flex flex-col w-full">
+                        <p class="text-xs font-medium uppercase leading-normal pb-2 text-primary">Location</p>
+                        <input id="task-edit-location" class="pixel-input" placeholder="Add a location" value=""/>
+                    </label>
+
+                    <label class="flex flex-col w-full">
+                        <p class="text-xs font-medium uppercase leading-normal pb-2 text-primary">People</p>
+                        <input id="task-edit-people" class="pixel-input" placeholder="Add people" value=""/>
+                    </label>
+
+                    <label class="flex flex-col w-full">
+                        <p class="text-xs font-medium uppercase leading-normal pb-2 text-primary">Notes</p>
+                        <textarea id="task-edit-notes" class="pixel-textarea h-32" placeholder="Add extra details here..."></textarea>
+                    </label>
+                    
+                    <div class="flex flex-col gap-4 pt-4">
+                         <button type="submit" class="pixel-button h-14 text-sm uppercase">Save Quest</button>
+                         <button type="button" id="task-edit-cancel" class="pixel-button-secondary h-14 text-sm uppercase">Cancel</button>
+                         <button type="button" id="task-edit-delete" class="pixel-button h-14 bg-danger text-text-light text-sm uppercase hidden">Delete Quest</button>
+                    </div>
+                </form>
+            </div>
+
+        </main>
+
+        <!-- ===== Global Navigation ===== -->
+        <nav class="sticky bottom-0 z-10 flex h-20 items-center justify-around border-t-4 border-border-dark bg-surface shadow-pixel-container">
+            <button class="nav-button flex flex-col items-center justify-center gap-1 p-2 text-primary" data-page="notes-list">
+                <span class="material-symbols-outlined text-3xl">shield_lock</span>
+                <span class="text-[10px] font-medium uppercase">Pixel Keep</span>
+            </button>
+            <button class="nav-button flex flex-col items-center justify-center gap-1 p-2 text-text-light/70" data-page="todos-list">
+                <span class="material-symbols-outlined text-3xl">task_alt</span>
+                <span class="text-[10px] font-medium uppercase">Quest Log</span>
+            </button>
+        </nav>
+
+    </div>
+
+    <!-- IndexedDB Library -->
+    <script src="https://cdn.jsdelivr.net/npm/idb@7/build/umd.js"></script>
+    <script src="crypto-js.min.js"></script>
+
+    <!-- Service Worker Logic - Removed due to registration errors from blob: URL -->
+    <!-- <script id="service-worker-logic" type="text/javascript"> ... </script> -->
+
+    <!-- Main Application JavaScript -->
+    <script type="module">
+        const { openDB } = idb;
+
+        // --- State ---
+        let db;
+        let password = '';
+        let isAuthenticated = false;
+        let currentImageClickHandler = null;
+
+        // --- DOM Elements ---
+        const unlockScreen = document.getElementById('unlock-screen');
+        const appContainer = document.getElementById('app-container');
+        const passwordInput = document.getElementById('password-input');
+        const unlockButton = document.getElementById('unlock-button');
+        
+        const pages = document.querySelectorAll('.page');
+        const navButtons = document.querySelectorAll('.nav-button');
+        const headerTitle = document.getElementById('header-title');
+        const headerIcon = document.getElementById('header-icon');
+        const notesListContainer = document.getElementById('notes-list-container');
+        const notesEmptyState = document.getElementById('notes-empty-state');
+        const todosListContainer = document.getElementById('todos-list-container');
+        const todosEmptyState = document.getElementById('todos-empty-state');
+        
+        // Note Edit
+        const noteEditForm = document.getElementById('note-edit-form');
+        const noteEditId = document.getElementById('note-edit-id');
+        const noteEditTitle = document.getElementById('note-edit-title');
+        const noteEditContent = document.getElementById('note-edit-content');
+        const noteEditTags = document.getElementById('note-edit-tags');
+        const noteEditCancel = document.getElementById('note-edit-cancel');
+        const noteEditDelete = document.getElementById('note-edit-delete');
+
+        // Note Details
+        const noteDetailTitle = document.getElementById('note-detail-title');
+        const noteDetailMeta = document.getElementById('note-detail-meta');
+        const noteDetailContent = document.getElementById('note-detail-content');
+        const noteDetailTags = document.getElementById('note-detail-tags');
+
+        // Task Edit
+        const taskEditForm = document.getElementById('task-edit-form');
+        const taskEditId = document.getElementById('task-edit-id');
+        const taskEditTitle = document.getElementById('task-edit-title');
+        const taskEditTime = document.getElementById('task-edit-time');
+        const taskEditLocation = document.getElementById('task-edit-location');
+        const taskEditPeople = document.getElementById('task-edit-people');
+        const taskEditNotes = document.getElementById('task-edit-notes');
+        const taskEditCancel = document.getElementById('task-edit-cancel');
+        const taskEditDelete = document.getElementById('task-edit-delete');
+
+        // --- Encryption ---
+        function encrypt(data, key) {
+            return CryptoJS.AES.encrypt(JSON.stringify(data), key).toString();
+        }
+
+        function decrypt(cipher, key) {
+            try {
+                const bytes = CryptoJS.AES.decrypt(cipher, key);
+                const decrypted = bytes.toString(CryptoJS.enc.Utf8);
+                return decrypted ? JSON.parse(decrypted) : null;
+            } catch (e) {
+                console.error("Decryption failed:", e);
+                return null;
+            }
+        }
+
+        // --- Database Setup ---
+        async function initDB() {
+            db = await openDB('PixelPWADatabase', 1, {
+                upgrade(db) {
+                    if (!db.objectStoreNames.contains('notes')) {
+                        // Store encrypted blobs
+                        db.createObjectStore('notes', { keyPath: 'id' });
+                    }
+                    if (!db.objectStoreNames.contains('tasks')) {
+                        db.createObjectStore('tasks', { keyPath: 'id' });
+                    }
+                    if (!db.objectStoreNames.contains('meta')) {
+                        db.createObjectStore('meta', { keyPath: 'key' });
+                    }
+                },
+            });
+        }
+
+        // --- Authentication ---
+        async function handleUnlock() {
+            const enteredPassword = passwordInput.value.trim();
+            if (!enteredPassword) {
+                alert('Please enter a password.');
+                return;
+            }
+
+            const check = await db.get('meta', 'password_check');
+            
+            if (check) {
+                // Existing user, verify password
+                if (decrypt(check.value, enteredPassword) === 'ok') {
+                    password = enteredPassword;
+                    isAuthenticated = true;
+                    startApp();
+                } else {
+                    alert('Wrong password.');
+                }
+            } else {
+                // New user, set password
+                const verification = { key: 'password_check', value: encrypt('ok', enteredPassword) };
+                await db.put('meta', verification);
+                password = enteredPassword;
+                isAuthenticated = true;
+                startApp();
+            }
+        }
+
+        function startApp() {
+            unlockScreen.style.display = 'none';
+            appContainer.style.display = 'flex';
+            setupEventListeners();
+            router();
+        }
+
+        // --- PWA Service Worker Registration ---
+        function registerServiceWorker() {
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('/sw.js')
+                        .then(registration => {
+                            console.log('Service Worker registered: ', registration);
+                        })
+                        .catch(error => {
+                            console.error('Service Worker registration failed: ', error);
+                        });
+                });
+            }
+        }
+        
+        // --- Router ---
+        function router() {
+            if (!isAuthenticated) return;
+
+            removeImageSelection();
+
+            const hash = location.hash || '#page-notes-list';
+            let currentPageId = 'page-notes-list';
+            
+            pages.forEach(page => page.classList.add('hidden'));
+
+            const editor = document.getElementById('note-edit-content');
+            // Remove previous image click handler if it exists
+            if (currentImageClickHandler) {
+                editor.removeEventListener('click', currentImageClickHandler);
+                currentImageClickHandler = null;
+            }
+
+            if (hash.startsWith('#page-note-edit')) {
+                currentPageId = 'page-note-edit';
+                const id = hash.split('/')[1];
+                showNoteEditor(id);
+                // Add image click handler only for note edit page
+                currentImageClickHandler = (e) => {
+                    if (e.target.tagName === 'IMG') {
+                        makeImageEditable(e.target);
+                    } else {
+                        removeImageSelection();
+                    }
+                };
+                editor.addEventListener('click', currentImageClickHandler);
+            } else if (hash.startsWith('#page-note-details')) {
+                currentPageId = 'page-note-details';
+                const id = hash.split('/')[1];
+                showNoteDetails(id);
+            } else if (hash.startsWith('#page-task-edit')) {
+                currentPageId = 'page-task-edit';
+                const id = hash.split('/')[1];
+                showTaskEditor(id);
+            } else if (hash === '#page-todos-list') {
+                currentPageId = 'page-todos-list';
+                renderTasksList();
+            } else {
+                currentPageId = 'page-notes-list';
+                renderNotesList();
+            }
+
+            const currentPage = document.getElementById(currentPageId);
+            if (currentPage) {
+                currentPage.classList.remove('hidden');
+            }
+            updateUI(currentPageId);
+        }
+
+        function updateUI(pageId) {
+            navButtons.forEach(btn => {
+                if (pageId.includes(btn.dataset.page)) {
+                    btn.classList.add('text-primary');
+                    btn.classList.remove('text-text-light/70');
+                } else {
+                    btn.classList.remove('text-primary');
+                    btn.classList.add('text-text-light/70');
+                }
+            });
+
+            const fabNotes = document.getElementById('notes-add-new-button');
+            const fabTodos = document.getElementById('todos-add-new-button');
+            
+            fabNotes.classList.add('hidden');
+            fabTodos.classList.add('hidden');
+
+            if (pageId.includes('notes-list')) {
+                headerTitle.textContent = 'Pixel Keep';
+                headerIcon.textContent = 'shield_lock';
+                fabNotes.classList.remove('hidden');
+            } else if (pageId.includes('todos-list')) {
+                headerTitle.textContent = 'Quest Log';
+                headerIcon.textContent = 'task_alt';
+                fabTodos.classList.remove('hidden');
+            } else if (pageId === 'page-note-edit') {
+                headerTitle.textContent = noteEditId.value ? 'Edit Scroll' : 'New Scroll';
+                headerIcon.textContent = 'edit';
+            } else if (pageId === 'page-note-details') {
+                headerTitle.textContent = 'View Scroll';
+                headerIcon.textContent = 'visibility';
+            } else if (pageId === 'page-task-edit') {
+                headerTitle.textContent = taskEditId.value ? 'Edit Quest' : 'New Quest';
+                headerIcon.textContent = 'edit_note';
+            }
+        }
+
+        // --- Notes CRUD & Rendering (ENCRYPTED) ---
+
+        function stripHTML(html) {
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            return doc.body.textContent || "";
+        }
+
+        async function renderNotesList() {
+            const encryptedNotes = await db.getAll('notes');
+            const notes = encryptedNotes.map(n => decrypt(n.data, password)).filter(Boolean).reverse();
+            
+            notesListContainer.innerHTML = '';
+            
+            if (notes.length === 0) {
+                notesEmptyState.classList.remove('hidden');
+                return;
+            }
+            notesEmptyState.classList.add('hidden');
+            
+            notes.forEach(note => {
+                const noteEl = document.createElement('div');
+                noteEl.className = 'flex flex-col gap-3 border-2 border-border-light bg-surface p-3 shadow-pixel-container';
+                
+                const plainContent = stripHTML(note.content);
+                const contentPreview = plainContent || 'No content...'; // Display full content or 'No content...';
+                const tags = (note.tags || []).map(tag => `<span class="material-symbols-outlined text-secondary" title="${tag}">label</span>`).join('');
+
+                noteEl.innerHTML = `
+                    <div class="flex items-start justify-between">
+                        <div class="flex flex-col justify-center min-w-0">
+                            <p class="text-xs font-bold leading-tight text-primary truncate">${note.title || 'Untitled'}</p>
+                            <p class="mt-2 text-[10px] font-normal leading-snug text-text-light/80 break-words note-preview-content">${contentPreview}</p>
+                        </div>
+                        <div class="ml-2 flex shrink-0 items-center gap-2">
+                           ${tags ? `<span class="material-symbols-outlined text-secondary">label</span>` : ''}
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-end gap-2 border-t-2 border-dashed border-border-light pt-2">
+                        <button class="pixel-button-surface note-copy-btn" data-id="${note.id}"><span class="material-symbols-outlined">content_copy</span></button>
+                        <button class="pixel-button-surface note-view-btn" data-id="${note.id}"><span class="material-symbols-outlined">visibility</span></button>
+                        <button class="pixel-button-surface note-edit-btn" data-id="${note.id}"><span class="material-symbols-outlined">edit</span></button>
+                        <button class="pixel-button-surface note-delete-btn" data-id="${note.id}"><span class="material-symbols-outlined">delete</span></button>
+                    </div>
+                `;
+                notesListContainer.appendChild(noteEl);
+            });
+        }
+
+        async function getNoteById(id) {
+            let encryptedNote = await db.get('notes', Number(id));
+            if (!encryptedNote) {
+                encryptedNote = await db.get('notes', id);
+            }
+            return encryptedNote;
+        }
+
+        async function showNoteDetails(id) {
+            const encryptedNote = await getNoteById(id);
+            if (!encryptedNote) {
+                location.hash = '#page-notes-list';
+                return;
+            }
+            const note = decrypt(encryptedNote.data, password);
+
+            noteDetailTitle.textContent = note.title;
+            noteDetailContent.innerHTML = note.content; // Use innerHTML to render HTML content
+            noteDetailMeta.textContent = `Last edited: ${new Date(note.updatedAt).toLocaleString()}`;
+            
+            const copyBtn = document.getElementById('note-detail-copy-btn');
+            copyBtn.dataset.id = id;
+
+            noteDetailTags.innerHTML = '';
+            (note.tags || []).forEach(tag => {
+                noteDetailTags.innerHTML += `<span class="border-2 border-border-light bg-surface px-3 py-1 text-[10px] font-medium text-primary shadow-pixel-btn">#${tag}</span>`;
+            });
+        }
+        
+        function removeImageSelection() {
+            const currentlySelected = document.querySelector('.selected-image');
+            if (currentlySelected) {
+                currentlySelected.classList.remove('selected-image');
+                const existingHandle = currentlySelected.parentElement.querySelector('.resize-handle');
+                if (existingHandle) {
+                    existingHandle.remove();
+                }
+            }
+        }
+
+        function makeImageEditable(img) {
+            removeImageSelection();
+
+            img.classList.add('selected-image');
+
+            const wrapper = document.createElement('div');
+            wrapper.style.position = 'relative';
+            wrapper.style.display = 'inline-block';
+            img.parentNode.insertBefore(wrapper, img);
+            wrapper.appendChild(img);
+
+            const resizeHandle = document.createElement('div');
+            resizeHandle.className = 'resize-handle resize-handle-br';
+            wrapper.appendChild(resizeHandle);
+
+            let startX, startY, startWidth, startHeight;
+
+            function startDrag(e) {
+                e.preventDefault();
+                startX = e.clientX || e.touches[0].clientX;
+                startY = e.clientY || e.touches[0].clientY;
+                startWidth = parseInt(document.defaultView.getComputedStyle(img).width, 10);
+                startHeight = parseInt(document.defaultView.getComputedStyle(img).height, 10);
+                document.documentElement.addEventListener('mousemove', doDrag, false);
+                document.documentElement.addEventListener('touchmove', doDrag, false);
+                document.documentElement.addEventListener('mouseup', stopDrag, false);
+                document.documentElement.addEventListener('touchend', stopDrag, false);
+            }
+
+            function doDrag(e) {
+                const clientX = e.clientX || e.touches[0].clientX;
+                const clientY = e.clientY || e.touches[0].clientY;
+                img.style.width = (startWidth + clientX - startX) + 'px';
+                img.style.height = (startHeight + clientY - startY) + 'px';
+            }
+
+            function stopDrag() {
+                document.documentElement.removeEventListener('mousemove', doDrag, false);
+                document.documentElement.removeEventListener('touchmove', doDrag, false);
+                document.documentElement.removeEventListener('mouseup', stopDrag, false);
+                document.documentElement.removeEventListener('touchend', stopDrag, false);
+            }
+
+            resizeHandle.addEventListener('mousedown', startDrag, false);
+            resizeHandle.addEventListener('touchstart', startDrag, false);
+        }
+
+        async function showNoteEditor(id) {
+            if (id) {
+                const encryptedNote = await getNoteById(id);
+                if (encryptedNote) {
+                    const note = decrypt(encryptedNote.data, password);
+                    noteEditId.value = note.id;
+                    noteEditTitle.value = note.title;
+                    noteEditContent.innerHTML = note.content;
+                    noteEditTags.value = (note.tags || []).join(', ');
+                    noteEditDelete.classList.remove('hidden');
+                }
+            } else {
+                noteEditForm.reset();
+                noteEditId.value = '';
+                noteEditContent.innerHTML = '';
+                noteEditDelete.classList.add('hidden');
+            }
+            noteEditContent.focus();
+            updateFormatButtons();
+
+            let draggedImage = null;
+
+            editor.addEventListener('dragstart', (e) => {
+                if (e.target.tagName === 'IMG') {
+                    draggedImage = e.target;
+                }
+            });
+
+            editor.addEventListener('dragover', (e) => {
+                e.preventDefault();
+            });
+
+            editor.addEventListener('drop', (e) => {
+                e.preventDefault();
+                if (draggedImage) {
+                    const range = document.caretRangeFromPoint(e.clientX, e.clientY);
+                    if (range) {
+                        range.insertNode(draggedImage);
+                    }
+                }
+                draggedImage = null;
+            });
+        }
+
+        async function saveNote(e) {
+            e.preventDefault();
+            const id = Number(noteEditId.value) || Date.now();
+            const tags = noteEditTags.value.split(',')
+                                    .map(t => t.trim())
+                                    .filter(t => t.length > 0);
+            
+            const note = {
+                id: id,
+                title: noteEditTitle.value,
+                content: noteEditContent.innerHTML,
+                tags: tags,
+                updatedAt: new Date().toISOString()
+            };
+
+            const encryptedData = encrypt(note, password);
+            await db.put('notes', { id: id, data: encryptedData });
+            
+            noteEditForm.reset();
+            location.hash = '#page-notes-list';
+        }
+
+        async function deleteNote(id) {
+            const numericId = Number(id);
+            // Try deleting with numeric ID first, then fall back to string ID if it fails
+            try {
+                await db.delete('notes', numericId);
+            } catch (e) {
+                try {
+                    await db.delete('notes', id);
+                } catch (e2) {
+                    console.error("Failed to delete note with both numeric and string ID", e2);
+                }
+            }
+            
+            if (location.hash.includes('note-details') || location.hash.includes('note-edit')) {
+                 location.hash = '#page-notes-list';
+            } else {
+                renderNotesList();
+            }
+        }
+
+        // --- Tasks CRUD & Rendering (ENCRYPTED) ---
+        
+        async function renderTasksList() {
+            const encryptedTasks = await db.getAll('tasks');
+            const tasks = encryptedTasks.map(t => decrypt(t.data, password)).filter(Boolean).reverse();
+
+            todosListContainer.innerHTML = '';
+
+            if (tasks.length === 0) {
+                todosEmptyState.classList.remove('hidden');
+                return;
+            }
+            todosEmptyState.classList.add('hidden');
+            
+            tasks.forEach(task => {
+                const taskEl = document.createElement('div');
+                const completed = task.completed || false;
+                taskEl.className = `flex flex-wrap items-start gap-4 border-2 border-border-light bg-surface p-3 shadow-pixel-container ${completed ? 'opacity-50' : ''}`;
+                
+                const timeStr = task.time ? new Date(task.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
+                const dateStr = task.time ? new Date(task.time).toLocaleDateString() : ''; // Format date
+                
+                taskEl.innerHTML = `
+                    <div class="flex items-start justify-between w-full">
+                        <div class="flex pt-1">
+                            <input type="checkbox" class="pixel-checkbox task-toggle-btn" data-id="${task.id}" ${completed ? 'checked' : ''}>
+                        </div>
+                        <div class="flex flex-1 flex-col justify-center gap-2 min-w-0">
+                            <p class="text-xs font-bold leading-normal ${completed ? 'text-text-light/70 line-through' : 'text-primary'}">${task.title}</p>
+                            <div class="mt-1 space-y-1 text-[10px] text-text-meta">
+                                ${dateStr ? `<div class="flex items-center gap-2"><span class="material-symbols-outlined text-base">event</span><p>${dateStr}</p></div>` : ''}
+                                ${timeStr ? `<div class="flex items-center gap-2"><span class="material-symbols-outlined text-base">schedule</span><p>${timeStr}</p></div>` : ''}
+                                ${task.location ? `<div class="flex items-center gap-2"><span class="material-symbols-outlined text-base">location_on</span><p>${task.location}</p></div>` : ''}
+                                ${task.people ? `<div class="flex items-center gap-2"><span class="material-symbols-outlined text-base">group</span><p>${task.people}</p></div>` : ''}
+                            </div>
+                        </div>
+                        <div class="flex items-center">
+                            ${task.notes ? `<button class="pixel-button-surface task-notes-toggle-btn"><span class="material-symbols-outlined">expand_more</span></button>` : ''}
+                            <button class="pixel-button-surface task-edit-btn" data-id="${task.id}">
+                                <span class="material-symbols-outlined">edit</span>
+                            </button>
+                        </div>
+                    </div>
+                    ${task.notes ? `<div class="task-notes hidden w-full mt-2 pt-2 border-t-2 border-dashed border-border-light text-xs text-text-light/80">${task.notes}</div>` : ''}
+                `;
+                todosListContainer.appendChild(taskEl);
+            });
+        }
+
+        async function showTaskEditor(id) {
+            if (id) {
+                const encryptedTask = await db.get('tasks', Number(id));
+                if (encryptedTask) {
+                    const task = decrypt(encryptedTask.data, password);
+                    taskEditId.value = task.id;
+                    taskEditTitle.value = task.title;
+                    taskEditTime.value = task.time ? new Date(new Date(task.time).getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0, 16) : '';
+                    taskEditLocation.value = task.location || '';
+                    taskEditPeople.value = task.people || '';
+                    taskEditNotes.value = task.notes || '';
+                    taskEditDelete.classList.remove('hidden');
+                }
+            } else {
+                taskEditForm.reset();
+                taskEditId.value = '';
+                taskEditDelete.classList.add('hidden');
+            }
+        }
+        
+        async function saveTask(e) {
+            e.preventDefault();
+            const id = Number(taskEditId.value) || Date.now();
+            
+            let completedStatus = false;
+            if (Number(taskEditId.value)) {
+                const encryptedOldTask = await db.get('tasks', id);
+                if(encryptedOldTask) {
+                    const oldTask = decrypt(encryptedOldTask.data, password);
+                    completedStatus = oldTask.completed;
+                }
+            }
+
+            const task = {
+                id: id,
+                title: taskEditTitle.value,
+                time: taskEditTime.value ? new Date(taskEditTime.value).toISOString() : null,
+                location: taskEditLocation.value,
+                people: taskEditPeople.value,
+                notes: taskEditNotes.value,
+                completed: completedStatus,
+                updatedAt: new Date().toISOString()
+            };
+            
+            const encryptedData = encrypt(task, password);
+            await db.put('tasks', { id: id, data: encryptedData });
+            
+            taskEditForm.reset();
+            location.hash = '#page-todos-list';
+        }
+
+        async function deleteTask(id) {
+            await db.delete('tasks', Number(id));
+            if (location.hash.includes('task-edit')) {
+                 location.hash = '#page-todos-list';
+            } else {
+                renderTasksList();
+            }
+        }
+        
+        async function toggleTask(id) {
+             const encryptedTask = await db.get('tasks', Number(id));
+             if (encryptedTask) {
+                 const task = decrypt(encryptedTask.data, password);
+                 task.completed = !task.completed;
+                 const encryptedData = encrypt(task, password);
+                 await db.put('tasks', { id: task.id, data: encryptedData });
+                 renderTasksList();
+             }
+        }
+
+        // --- Image Handling ---
+        // --- Image Handling ---
+        function addImageFromGallery() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = e => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = readerEvent => {
+                    const content = readerEvent.target.result;
+                    const editor = document.getElementById('note-edit-content');
+                    const imgTag = `<img src="${content}" class="w-full">`;
+                    editor.focus();
+                    document.execCommand('insertHTML', false, imgTag);
+                }
+                reader.readAsDataURL(file);
+            }
+            input.click();
+        }
+
+        async function openCamera() {
+            const cameraModal = document.getElementById('camera-modal');
+            const video = document.getElementById('camera-stream');
+            cameraModal.classList.remove('hidden');
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+            } catch (err) {
+                console.error("Error accessing camera: ", err);
+                cameraModal.classList.add('hidden');
+            }
+        }
+
+        function captureImage() {
+            const cameraModal = document.getElementById('camera-modal');
+            const video = document.getElementById('camera-stream');
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const dataUrl = canvas.toDataURL('image/png');
+            
+            const editor = document.getElementById('note-edit-content');
+            const imgTag = `<img src="${dataUrl}" class="w-full">`;
+            editor.focus();
+            document.execCommand('insertHTML', false, imgTag);
+
+            // Stop the stream and hide the modal
+            const stream = video.srcObject;
+            const tracks = stream.getTracks();
+            tracks.forEach(track => track.stop());
+            cameraModal.classList.add('hidden');
+        }
+
+        function closeCamera() {
+            const cameraModal = document.getElementById('camera-modal');
+            const video = document.getElementById('camera-stream');
+            const stream = video.srcObject;
+            if (stream) {
+                const tracks = stream.getTracks();
+                tracks.forEach(track => track.stop());
+            }
+            cameraModal.classList.add('hidden');
+        }
+
+        function formatText(command) {
+            const editor = document.getElementById('note-edit-content');
+            editor.focus(); // Ensure the editor is focused
+
+            if (command === 'bold') {
+                document.execCommand('bold', false, null);
+            } else if (command === 'italic') {
+                document.execCommand('italic', false, null);
+            } else if (command === 'underline') {
+                document.execCommand('underline', false, null);
+            } else if (command === 'list') {
+                document.execCommand('insertUnorderedList', false, null);
+            }
+            updateFormatButtons();
+        }
+
+        function updateFormatButtons() {
+            const boldButton = document.getElementById('format-bold');
+            const italicButton = document.getElementById('format-italic');
+            const underlineButton = document.getElementById('format-underline');
+            const listButton = document.getElementById('format-list');
+
+            if (document.queryCommandState('bold')) {
+                boldButton.classList.add('bg-primary', 'text-background-dark');
+            } else {
+                boldButton.classList.remove('bg-primary', 'text-background-dark');
+            }
+
+            if (document.queryCommandState('italic')) {
+                italicButton.classList.add('bg-primary', 'text-background-dark');
+            } else {
+                italicButton.classList.remove('bg-primary', 'text-background-dark');
+            }
+
+            if (document.queryCommandState('underline')) {
+                underlineButton.classList.add('bg-primary', 'text-background-dark');
+            } else {
+                underlineButton.classList.remove('bg-primary', 'text-background-dark');
+            }
+
+            if (document.queryCommandState('insertUnorderedList')) {
+                listButton.classList.add('bg-primary', 'text-background-dark');
+            } else {
+                listButton.classList.remove('bg-primary', 'text-background-dark');
+            }
+        }
+
+        // --- Event Listeners ---
+        function setupEventListeners() {
+            window.addEventListener('hashchange', router);
+            navButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    location.hash = `#page-${btn.dataset.page}`;
+                });
+            });
+            document.getElementById('notes-add-new-button').addEventListener('click', () => {
+                location.hash = '#page-note-edit';
+            });
+            document.getElementById('todos-add-new-button').addEventListener('click', () => {
+                location.hash = '#page-task-edit';
+            });
+            noteEditForm.addEventListener('submit', saveNote);
+            noteEditCancel.addEventListener('click', () => location.hash = '#page-notes-list');
+            noteEditDelete.addEventListener('click', () => {
+                deleteNote(noteEditId.value);
+            });
+            taskEditForm.addEventListener('submit', saveTask);
+            taskEditCancel.addEventListener('click', () => location.hash = '#page-todos-list');
+            taskEditDelete.addEventListener('click', () => {
+                deleteTask(taskEditId.value);
+            });
+            document.getElementById('format-bold').addEventListener('click', () => formatText('bold'));
+            document.getElementById('format-italic').addEventListener('click', () => formatText('italic'));
+            document.getElementById('format-underline').addEventListener('click', () => formatText('underline'));
+            document.getElementById('format-list').addEventListener('click', () => formatText('list'));
+            document.getElementById('note-add-image-gallery').addEventListener('click', addImageFromGallery);
+            document.getElementById('note-add-image-camera').addEventListener('click', openCamera);
+            document.getElementById('capture-image-button').addEventListener('click', captureImage);
+            document.getElementById('cancel-camera-button').addEventListener('click', closeCamera);
+
+            const editor = document.getElementById('note-edit-content');
+            editor.addEventListener('focus', updateFormatButtons);
+            editor.addEventListener('input', updateFormatButtons);
+            document.addEventListener('selectionchange', () => {
+                if (document.activeElement === editor) {
+                    updateFormatButtons();
+                }
+            });
+            editor.addEventListener('blur', () => {
+                document.getElementById('format-bold').classList.remove('bg-primary', 'text-background-dark');
+                document.getElementById('format-italic').classList.remove('bg-primary', 'text-background-dark');
+                document.getElementById('format-underline').classList.remove('bg-primary', 'text-background-dark');
+                document.getElementById('format-list').classList.remove('bg-primary', 'text-background-dark');
+            });
+
+            document.getElementById('note-detail-copy-btn').addEventListener('click', async (e) => {
+                const id = e.currentTarget.dataset.id;
+                const encryptedNote = await db.get('notes', Number(id));
+                if (encryptedNote) {
+                    const note = decrypt(encryptedNote.data, password);
+                    const plainText = stripHTML(note.content);
+                    navigator.clipboard.writeText(plainText).then(() => {
+                        const icon = e.currentTarget.querySelector('.material-symbols-outlined');
+                        icon.textContent = 'check';
+                        setTimeout(() => {
+                            icon.textContent = 'content_copy';
+                        }, 1500);
+                    });
+                }
+            });
+
+            document.body.addEventListener('click', async (e) => {
+                if (e.target.closest('.note-copy-btn')) {
+                    const button = e.target.closest('.note-copy-btn');
+                    const id = button.dataset.id;
+                    const encryptedNote = await db.get('notes', Number(id));
+                    if (encryptedNote) {
+                        const note = decrypt(encryptedNote.data, password);
+                        const plainText = stripHTML(note.content);
+                        navigator.clipboard.writeText(plainText).then(() => {
+                            const icon = button.querySelector('.material-symbols-outlined');
+                            icon.textContent = 'check';
+                            setTimeout(() => {
+                                icon.textContent = 'content_copy';
+                            }, 1500);
+                        });
+                    }
+                }
+
+                if (e.target.closest('.note-view-btn')) {
+                    location.hash = `#page-note-details/${e.target.closest('.note-view-btn').dataset.id}`;
+                }
+                if (e.target.closest('.note-edit-btn')) {
+                    location.hash = `#page-note-edit/${e.target.closest('.note-edit-btn').dataset.id}`;
+                }
+                if (e.target.closest('.note-delete-btn')) {
+                    deleteNote(e.target.closest('.note-delete-btn').dataset.id);
+                }
+                if (e.target.closest('.task-edit-btn')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    location.hash = `#page-task-edit/${e.target.closest('.task-edit-btn').dataset.id}`;
+                }
+                if (e.target.closest('.task-notes-toggle-btn')) {
+                    const button = e.target.closest('.task-notes-toggle-btn');
+                    const taskEl = button.closest('.flex.flex-wrap');
+                    const notesEl = taskEl.querySelector('.task-notes');
+                    const icon = button.querySelector('.material-symbols-outlined');
+
+                    if (notesEl) {
+                        notesEl.classList.toggle('hidden');
+                        if (notesEl.classList.contains('hidden')) {
+                            icon.textContent = 'expand_more';
+                        } else {
+                            icon.textContent = 'expand_less';
+                        }
+                    }
+                }
+
+                 if (e.target.closest('.task-toggle-btn')) {
+                    toggleTask(e.target.closest('.task-toggle-btn').dataset.id);
+                }
+            });
+        }
+
+        // --- Import/Export ---
+        async function exportNotes() {
+            if (!isAuthenticated) return;
+
+            const encryptedNotes = await db.getAll('notes');
+            const notes = encryptedNotes.map(n => decrypt(n.data, password)).filter(Boolean);
+
+            if (notes.length === 0) {
+                alert("No notes to export.");
+                return;
+            }
+
+            const jsonString = JSON.stringify(notes, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `pixel-notes-export-${new Date().toISOString().slice(0,10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function importNotes(event) {
+            if (!isAuthenticated) return;
+            
+            const file = event.target.files[0];
+            if (!file) {
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const importedNotes = JSON.parse(e.target.result);
+                    if (Array.isArray(importedNotes)) {
+                        const tx = db.transaction('notes', 'readwrite');
+                        const promises = importedNotes.map((note, index) => {
+                            // A simple validation to see if it looks like a note
+                            if (note.title) { // Content is not mandatory
+                                let noteId = typeof note.id === 'number' ? note.id : Date.now() + index;
+                                const encryptedData = encrypt({ ...note, id: noteId }, password);
+                                return tx.store.put({ id: noteId, data: encryptedData });
+                            }
+                            return Promise.resolve();
+                        });
+                        await Promise.all(promises);
+                        await tx.done;
+                        
+                        renderNotesList();
+                        alert(`${importedNotes.length} notes imported successfully!`);
+                    } else {
+                        alert("Invalid file format.");
+                    }
+                } catch (error) {
+                    alert("Error reading or parsing the file.");
+                    console.error("Import error:", error);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // --- App Initialization ---
+        async function main() {
+            await initDB();
+            
+            unlockButton.addEventListener('click', handleUnlock);
+            passwordInput.addEventListener('keyup', (e) => {
+                if (e.key === 'Enter') {
+                    handleUnlock();
+                }
+            });
+
+            document.getElementById('export-button').addEventListener('click', exportNotes);
+            document.getElementById('import-button').addEventListener('click', () => {
+                document.getElementById('import-file-input').click();
+            });
+            document.getElementById('import-file-input').addEventListener('change', importNotes);
+
+            registerServiceWorker();
+        }
+
+        main();
+
+    </script>
+</body>
+</html>
+
+
+
+
+
+

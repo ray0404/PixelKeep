@@ -1,0 +1,20 @@
+{
+  "hosting": {
+    "site": "pixelkeep",
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "GEMINI.md",
+      "NoteAppPWAref.md",
+      "newUIelements/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}
