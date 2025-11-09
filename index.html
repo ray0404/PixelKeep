@@ -243,6 +243,18 @@
             right: -5px;
             cursor: nwse-resize;
         }
+
+        /* Drag and Drop Styles */
+        .dragging {
+            opacity: 0.5;
+            background: #4f46e5; /* --border-light */
+        }
+        .drag-over {
+            border-top: 2px dashed #4ade80; /* --primary */
+        }
+        .no-pointer-events * {
+            pointer-events: none;
+        }
     </style>
 </head>
 
@@ -593,6 +605,7 @@
             unlockScreen.style.display = 'none';
             appContainer.style.display = 'flex';
             setupEventListeners();
+            setupDragAndDrop(); // Initialize drag and drop
             router();
         }
 
@@ -711,7 +724,10 @@
 
         async function renderNotesList() {
             const encryptedNotes = await db.getAll('notes');
-            const notes = encryptedNotes.map(n => decrypt(n.data, password)).filter(Boolean).reverse();
+            const notes = encryptedNotes
+                .map(n => decrypt(n.data, password))
+                .filter(Boolean)
+                .sort((a, b) => (a.order || 0) - (b.order || 0)); // Sort by order
             
             notesListContainer.innerHTML = '';
             
@@ -724,9 +740,11 @@
             notes.forEach(note => {
                 const noteEl = document.createElement('div');
                 noteEl.className = 'flex flex-col gap-3 border-2 border-border-light bg-surface p-3 shadow-pixel-container';
+                noteEl.setAttribute('draggable', 'true');
+                noteEl.dataset.id = note.id;
                 
                 const plainContent = stripHTML(note.content);
-                const contentPreview = plainContent || 'No content...'; // Display full content or 'No content...';
+                const contentPreview = plainContent || 'No content...';
                 const tags = (note.tags || []).map(tag => `<span class="material-symbols-outlined text-secondary" title="${tag}">label</span>`).join('');
 
                 noteEl.innerHTML = `
@@ -887,13 +905,23 @@
             const tags = noteEditTags.value.split(',')
                                     .map(t => t.trim())
                                     .filter(t => t.length > 0);
+
+            let order = id; // Default order for new notes
+            if (Number(noteEditId.value)) {
+                const encryptedOldNote = await getNoteById(id);
+                if(encryptedOldNote) {
+                    const oldNote = decrypt(encryptedOldNote.data, password);
+                    order = oldNote.order || id; // Preserve existing order
+                }
+            }
             
             const note = {
                 id: id,
                 title: noteEditTitle.value,
                 content: noteEditContent.innerHTML,
                 tags: tags,
-                updatedAt: new Date().toISOString()
+                updatedAt: new Date().toISOString(),
+                order: order
             };
 
             const encryptedData = encrypt(note, password);
@@ -1158,7 +1186,127 @@
             }
         }
 
+        // --- Note Reordering ---
+        async function updateNoteOrder() {
+            const noteElements = [...notesListContainer.children];
+            const tx = db.transaction('notes', 'readwrite');
+            const encryptedNotes = await tx.store.getAll();
+            
+            const decryptedNotes = encryptedNotes.map(n => decrypt(n.data, password)).filter(Boolean);
+
+            const promises = noteElements.map((el, index) => {
+                const noteId = Number(el.dataset.id);
+                const noteToUpdate = decryptedNotes.find(n => n.id === noteId);
+                if (noteToUpdate) {
+                    noteToUpdate.order = index;
+                    const encryptedData = encrypt(noteToUpdate, password);
+                    return tx.store.put({ id: noteId, data: encryptedData });
+                }
+                return Promise.resolve();
+            });
+
+            await Promise.all(promises);
+            await tx.done;
+        }
+
         // --- Event Listeners ---
+        function setupDragAndDrop() {
+            let draggedItem = null;
+            let longPressTimer = null;
+
+            const startDrag = (item) => {
+                draggedItem = item;
+                draggedItem.classList.add('dragging', 'no-pointer-events');
+            };
+
+            const endDrag = () => {
+                if (!draggedItem) return;
+                draggedItem.classList.remove('dragging', 'no-pointer-events');
+                const allOver = document.querySelectorAll('.drag-over');
+                allOver.forEach(el => el.classList.remove('drag-over'));
+                updateNoteOrder();
+                draggedItem = null;
+            };
+
+            const moveDrag = (y) => {
+                if (!draggedItem) return;
+                const afterElement = getDragAfterElement(notesListContainer, y);
+                const currentOver = notesListContainer.querySelector('.drag-over');
+                if (currentOver) {
+                    currentOver.classList.remove('drag-over');
+                }
+
+                if (afterElement) {
+                    afterElement.classList.add('drag-over');
+                    notesListContainer.insertBefore(draggedItem, afterElement);
+                } else {
+                    // If no element is after, append to the end
+                    notesListContainer.appendChild(draggedItem);
+                }
+            };
+
+            // Mouse Events
+            notesListContainer.addEventListener('dragstart', e => {
+                const target = e.target.closest('[draggable="true"]');
+                if (!target) return;
+                startDrag(target);
+            });
+
+            notesListContainer.addEventListener('dragend', endDrag);
+            notesListContainer.addEventListener('dragover', e => {
+                e.preventDefault();
+                moveDrag(e.clientY);
+            });
+
+            // Touch Events
+            notesListContainer.addEventListener('touchstart', e => {
+                const target = e.target.closest('[draggable="true"]');
+                if (!target) return;
+
+                longPressTimer = setTimeout(() => {
+                    startDrag(target);
+                    longPressTimer = null;
+                }, 500); // 500ms for long press
+            }, { passive: true });
+
+            notesListContainer.addEventListener('touchend', () => {
+                clearTimeout(longPressTimer);
+                if (draggedItem) {
+                    endDrag();
+                }
+            });
+
+            notesListContainer.addEventListener('touchmove', e => {
+                if (!draggedItem) {
+                    clearTimeout(longPressTimer);
+                    return;
+                }
+                e.preventDefault(); // Prevent scrolling
+                moveDrag(e.touches[0].clientY);
+            });
+
+
+             notesListContainer.addEventListener('dragleave', e => {
+                if (e.target.classList.contains('drag-over')) {
+                    e.target.classList.remove('drag-over');
+                }
+            });
+
+            function getDragAfterElement(container, y) {
+                const draggableElements = [...container.querySelectorAll('[draggable="true"]:not(.dragging)')];
+
+                return draggableElements.reduce((closest, child) => {
+                    const box = child.getBoundingClientRect();
+                    const offset = y - box.top - box.height / 2;
+                    if (offset < 0 && offset > closest.offset) {
+                        return { offset: offset, element: child };
+                    } else {
+                        return closest;
+                    }
+                }, { offset: Number.NEGATIVE_INFINITY }).element;
+            }
+        }
+
         function setupEventListeners() {
             window.addEventListener('hashchange', router);
             navButtons.forEach(btn => {
