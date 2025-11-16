@@ -4,6 +4,7 @@ const urlsToCache = [
   'index.html',
   'manifest.webmanifest',
   'crypto-js.min.js',
+  'turndown.js',
   'icons/icon-192.png',
   'icons/icon-512.png',
   'https://cdn.tailwindcss.com?plugins=forms,container-queries',
