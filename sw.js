@@ -7,12 +7,11 @@ const urlsToCache = [
   'turndown.js',
   'icons/icon-192.png',
   'icons/icon-512.png',
-  'https://cdn.tailwindcss.com?plugins=forms,container-queries',
-  'https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap',
-  'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined',
-  'https://cdn.jsdelivr.net/npm/idb@7/build/umd.js',
-  'https://fonts.gstatic.com/s/pressstart2p/v15/e3t4euO8T-267oIAQAu6jDQyK3nVivM.woff2',
-  'https://fonts.gstatic.com/s/materialsymbolsoutlined/v169/kJF1BvYX7BgnkSr3PzllTyE5YcMOMlrwqBuflv32RR4.woff2'
+  'tailwind.min.css',
+  'fonts.css',
+  'assets/press-start-2p.ttf',
+  'assets/material-symbols-outlined.ttf',
+  'app.min.js'
 ];
 
 self.addEventListener('install', event => {
