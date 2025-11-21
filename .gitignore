@@ -79,3 +79,10 @@ NoteAppPWAref.md
 
 # Firebase Hosting config
 firebase.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
