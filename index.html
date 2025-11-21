@@ -13,6 +13,9 @@
 
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+    
+    <!-- Additional Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Merriweather:wght@400;700&display=swap" rel="stylesheet">
 
     <!-- Additional Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Merriweather:wght@400;700&display=swap" rel="stylesheet">
@@ -242,7 +245,7 @@
         }
 
         /* Compact Mode Overrides */
-        body.compact-mode .pixel-button,
+        body.compact-mode .pixel-button, 
         body.compact-mode .pixel-button-secondary,
         body.compact-mode .pixel-input,
         body.compact-mode .nav-button {
@@ -259,7 +262,7 @@
         body.bg-solid-gray { background: #1f2937 !important; }
         body.bg-midnight { background: #0f172a !important; }
         body.bg-forest { background: #022c22 !important; }
-        body.bg-pattern-grid {
+        body.bg-pattern-grid { 
             background-color: #1e1b4b !important;
             background-image: linear-gradient(#4f46e5 1px, transparent 1px), linear-gradient(90deg, #4f46e5 1px, transparent 1px) !important;
             background-size: 20px 20px !important;
@@ -482,7 +485,7 @@
             <div id="page-settings" class="page hidden p-4">
                 <div class="mb-6 border-2 border-border-light bg-surface p-4 shadow-pixel-container">
                     <h3 class="mb-4 text-xs uppercase text-primary font-bold">Appearance</h3>
-
+                    
                     <div class="mb-3 flex items-center justify-between">
                         <span class="text-xs text-text-light">Font</span>
                         <select id="setting-font" class="pixel-input !h-8 !w-40 !text-xs">
@@ -533,7 +536,7 @@
                             <option value="leading-loose">Loose</option>
                         </select>
                     </div>
-
+                    
                     <div class="mb-3 flex items-center justify-between">
                         <span class="text-xs text-text-light">Compact Mode</span>
                          <input type="checkbox" id="setting-compact" class="pixel-checkbox size-5">
@@ -1744,7 +1747,7 @@
             const handleDragOver = (e) => {
                 e.preventDefault();
                 dragClientY = e.clientY || (e.touches && e.touches[0].clientY);
-
+                
                 const container = e.currentTarget;
                 const afterElement = getDragAfterElement(container, dragClientY);
                 const folderTarget = e.target.closest('[data-type="folder"]');
@@ -1762,9 +1765,9 @@
                 // Autoscroll logic
                 if (!autoScrollFrame) {
                     const scrollLoop = () => {
-                        const scrollThreshold = 80;
-                        const scrollSpeed = 15;
-
+                        const scrollThreshold = 80; 
+                        const scrollSpeed = 15; 
+                        
                         if (dragClientY < scrollThreshold) {
                             window.scrollBy(0, -scrollSpeed);
                             autoScrollFrame = requestAnimationFrame(scrollLoop);
@@ -1876,7 +1879,7 @@
             document.getElementById('settings-button').addEventListener('click', () => {
                 location.hash = '#page-settings';
             });
-
+            
             // Settings Listeners
             document.getElementById('setting-font').addEventListener('change', (e) => {
                 settings.font = e.target.value;
@@ -1939,7 +1942,7 @@
 
             const editor = document.getElementById('note-edit-content');
             editor.addEventListener('focus', () => {
-                setTimeout(ensureCleanEditorState, 0);
+                setTimeout(ensureCleanEditorState, 0); 
             });
             editor.addEventListener('click', () => {
                  setTimeout(ensureCleanEditorState, 0);
@@ -2286,10 +2289,10 @@
             // Font
             const fontClasses = ['font-display', 'font-sans', 'font-serif', 'font-mono', 'font-Inter', 'font-Roboto', 'font-Open-Sans', 'font-Lato', 'font-Montserrat', 'font-Merriweather'];
             document.body.classList.remove(...fontClasses);
-
+            
             let fontClass = settings.font;
             if (fontClass !== 'font-display') {
-                 if (!fontClass.startsWith('font-') && fontClass !== 'Inter' && fontClass !== 'Roboto') {
+                 if (!fontClass.startsWith('font-') && fontClass !== 'Inter' && fontClass !== 'Roboto') { 
                      fontClass = 'font-' + fontClass.replace(' ', '-');
                  } else if (!fontClass.startsWith('font-')) {
                      fontClass = 'font-' + fontClass;
@@ -2324,7 +2327,7 @@
             }
 
             // Scale
-            document.documentElement.style.fontSize = `${settings.scale}%`;
+            document.documentElement.style.fontSize = `${settings.scale}%`; 
         }
 
         function initSettingsUI() {
