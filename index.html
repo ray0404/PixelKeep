@@ -14,6 +14,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
 
+    <!-- Additional Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Merriweather:wght@400;700&display=swap" rel="stylesheet">
+
     <script src="turndown.js"></script>
     <script>
         tailwind.config = {
@@ -21,11 +24,11 @@
             theme: {
                 extend: {
                     colors: {
-                        "primary": "#4ade80", // Bright Pixel Green
-                        "secondary": "#a855f7", // Bright Pixel Purple
+                        "primary": "var(--color-primary)", // Bright Pixel Green
+                        "secondary": "var(--color-secondary)", // Bright Pixel Purple
                         "background-dark": "#1e1b4b", // Deep Indigo
                         "surface": "#312e81", // Dark Indigo
-                        "text-light": "#f0fdf4", // Off-white/Light Green
+                        "text-light": "var(--color-text-light)", // Off-white/Light Green
                         "text-meta": "#a5b4fc", // Lighter Indigo for meta
                         "border-light": "#4f46e5", // Indigo Border
                         "border-dark": "#1e1b4b", // Darker Indigo for inset effect
@@ -53,6 +56,13 @@
     </script>
 
     <style>
+        :root {
+            --color-primary: #4ade80;
+            --color-secondary: #a855f7;
+            --color-text-light: #f0fdf4;
+            --content-font-size: 0.6rem; /* Default text-xs size */
+        }
+
         .material-symbols-outlined {
             font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
             font-size: 1.25rem;
@@ -85,11 +95,11 @@
         
         /* Unified Form Input */
         .pixel-input {
-           @apply h-12 w-full resize-none border-2 border-border-light px-4 shadow-pixel-container-inset focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary;
+           @apply h-14 w-full resize-none border-2 border-border-light px-4 shadow-pixel-container-inset focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary;
            appearance: none;
            background-color: #f0fdf4 !important;
            color: #000000 !important;
-           font-size: 0.6rem;
+           font-size: var(--content-font-size) !important;
         }
         .pixel-input::placeholder {
             color: #1e1b4b !important;
@@ -102,7 +112,8 @@
            padding-bottom: 0.75rem;
            background-color: #f0fdf4 !important;
            color: #000000 !important;
-           font-size: 0.6rem;
+           font-size: var(--content-font-size) !important;
+           font-weight: 400;
            white-space: pre-wrap;
            word-wrap: break-word;
            overflow-wrap: break-word;
@@ -150,6 +161,7 @@
             word-wrap: break-word;
             overflow-wrap: break-word;
             word-break: break-all;
+            font-size: var(--content-font-size) !important;
         }
 
         .note-content-display img {
@@ -236,6 +248,46 @@
             border-color: #ef4444;
             color: white;
         }
+
+        /* Compact Mode Overrides */
+        body.compact-mode .pixel-button,
+        body.compact-mode .pixel-button-secondary,
+        body.compact-mode .pixel-input,
+        body.compact-mode .nav-button {
+            height: 2.5rem !important;
+            font-size: 0.75rem !important;
+            line-height: 1rem !important;
+        }
+        body.compact-mode .nav-button .material-symbols-outlined {
+            font-size: 1.5rem;
+        }
+
+        /* Background Options */
+        body.bg-solid-black { background: #000000 !important; }
+        body.bg-solid-gray { background: #1f2937 !important; }
+        body.bg-midnight { background: #0f172a !important; }
+        body.bg-forest { background: #022c22 !important; }
+        body.bg-pattern-grid {
+            background-color: #1e1b4b !important;
+            background-image: linear-gradient(#4f46e5 1px, transparent 1px), linear-gradient(90deg, #4f46e5 1px, transparent 1px) !important;
+            background-size: 20px 20px !important;
+        }
+        body.bg-pattern-dots {
+            background-color: #1e1b4b !important;
+            background-image: radial-gradient(#4f46e5 1px, transparent 1px) !important;
+            background-size: 20px 20px !important;
+        }
+
+        /* Font Options */
+        body.font-sans { font-family: ui-sans-serif, system-ui, sans-serif !important; }
+        body.font-serif { font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif !important; }
+        body.font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important; }
+        body.font-Inter { font-family: 'Inter', sans-serif !important; }
+        body.font-Roboto { font-family: 'Roboto', sans-serif !important; }
+        body.font-Open-Sans { font-family: 'Open Sans', sans-serif !important; }
+        body.font-Lato { font-family: 'Lato', sans-serif !important; }
+        body.font-Montserrat { font-family: 'Montserrat', sans-serif !important; }
+        body.font-Merriweather { font-family: 'Merriweather', serif !important; }
     </style>
 </head>
 
@@ -271,6 +323,7 @@
                 <button id="delete-selected-button" class="pixel-button-surface hidden bg-danger"><span class="material-symbols-outlined">delete</span></button>
                 <button id="export-button" class="pixel-button-surface"><span class="material-symbols-outlined">file_download</span></button>
                 <button id="import-button" class="pixel-button-surface"><span class="material-symbols-outlined">file_upload</span></button>
+                <button id="settings-button" class="pixel-button-surface"><span class="material-symbols-outlined">settings</span></button>
                 <input type="file" id="import-file-input" class="hidden" accept=".json">
             </div>
         </header>
@@ -434,6 +487,119 @@
                 </form>
             </div>
 
+            <div id="page-settings" class="page hidden p-4">
+                <div class="mb-6 border-2 border-border-light bg-surface p-4 shadow-pixel-container">
+                    <h3 class="mb-4 text-xs uppercase text-primary font-bold">Appearance</h3>
+
+                    <div class="mb-3 flex items-center justify-between">
+                        <span class="text-xs text-text-light">Font</span>
+                        <select id="setting-font" class="pixel-input !h-8 !w-40 !text-xs">
+                            <option value="font-display">Pixel (Default)</option>
+                            <option value="font-sans">System Sans</option>
+                            <option value="font-serif">System Serif</option>
+                            <option value="font-mono">System Mono</option>
+                            <optgroup label="Readable Fonts">
+                                <option value="Inter">Inter</option>
+                                <option value="Roboto">Roboto</option>
+                                <option value="Open Sans">Open Sans</option>
+                                <option value="Lato">Lato</option>
+                                <option value="Montserrat">Montserrat</option>
+                                <option value="Merriweather">Merriweather</option>
+                            </optgroup>
+                        </select>
+                    </div>
+
+                    <div class="mb-3 flex items-center justify-between">
+                        <span class="text-xs text-text-light">Background</span>
+                        <select id="setting-bg" class="pixel-input !h-8 !w-40 !text-xs">
+                            <option value="bg-default">Default (Deep Indigo)</option>
+                            <option value="bg-solid-black">Solid Black</option>
+                            <option value="bg-solid-gray">Solid Gray</option>
+                            <option value="bg-midnight">Midnight Blue</option>
+                            <option value="bg-forest">Dark Forest</option>
+                            <option value="bg-pattern-grid">Pixel Grid</option>
+                            <option value="bg-pattern-dots">Polka Dots</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3 flex items-center justify-between">
+                        <span class="text-xs text-text-light">Primary Color</span>
+                        <select id="setting-color-primary" class="pixel-input !h-8 !w-40 !text-xs">
+                            <option value="#4ade80">Pixel Green (Default)</option>
+                            <option value="#a855f7">Pixel Purple</option>
+                            <option value="#ef4444">Red</option>
+                            <option value="#f59e0b">Amber</option>
+                            <option value="#3b82f6">Blue</option>
+                            <option value="#ec4899">Pink</option>
+                            <option value="#ffffff">White</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3 flex items-center justify-between">
+                        <span class="text-xs text-text-light">Secondary Color</span>
+                        <select id="setting-color-secondary" class="pixel-input !h-8 !w-40 !text-xs">
+                             <option value="#a855f7">Pixel Purple (Default)</option>
+                             <option value="#4ade80">Pixel Green</option>
+                             <option value="#ef4444">Red</option>
+                             <option value="#f59e0b">Amber</option>
+                             <option value="#3b82f6">Blue</option>
+                             <option value="#ec4899">Pink</option>
+                             <option value="#ffffff">White</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3 flex items-center justify-between">
+                        <span class="text-xs text-text-light">Body Text Color</span>
+                        <select id="setting-color-text" class="pixel-input !h-8 !w-40 !text-xs">
+                            <option value="#f0fdf4">Off-White (Default)</option>
+                            <option value="#ffffff">Pure White</option>
+                            <option value="#d1d5db">Gray</option>
+                            <option value="#4ade80">Pixel Green</option>
+                            <option value="#f59e0b">Amber</option>
+                        </select>
+                    </div>
+
+                    <div class="flex flex-col gap-2 mb-3">
+                         <div class="flex justify-between">
+                            <span class="text-xs text-text-light">Content Font Size</span>
+                            <span id="setting-content-size-value" class="text-xs text-primary">0.6rem</span>
+                         </div>
+                         <input type="range" id="setting-content-size" min="0.5" max="1.2" step="0.05" value="0.6" class="w-full accent-primary">
+                    </div>
+
+                    <div class="mb-3 flex items-center justify-between">
+                        <span class="text-xs text-text-light">Line Spacing</span>
+                        <select id="setting-line-height" class="pixel-input !h-8 !w-40 !text-xs">
+                            <option value="leading-normal">Normal</option>
+                            <option value="leading-relaxed">Relaxed</option>
+                            <option value="leading-loose">Loose</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3 flex items-center justify-between">
+                        <span class="text-xs text-text-light">Compact Mode</span>
+                         <input type="checkbox" id="setting-compact" class="pixel-checkbox size-5">
+                    </div>
+
+                    <div class="flex flex-col gap-2 mt-4">
+                         <div class="flex justify-between">
+                            <span class="text-xs text-text-light">Interface Scale</span>
+                            <span id="setting-scale-value" class="text-xs text-primary">100%</span>
+                         </div>
+                         <input type="range" id="setting-scale" min="75" max="125" step="5" value="100" class="w-full accent-primary">
+                    </div>
+                </div>
+
+                 <div class="mb-6 border-2 border-border-light bg-surface p-4 shadow-pixel-container">
+                    <h3 class="mb-4 text-xs uppercase text-primary font-bold">About</h3>
+                    <p class="text-xs text-text-light/70 leading-relaxed">
+                        Pixel Keep v2.0<br>
+                        Secure, Offline-First PWA.<br>
+                        All data is encrypted locally.
+                    </p>
+                </div>
+            </div>
+
         </main>
 
         <nav class="sticky bottom-0 z-10 flex h-20 items-center justify-around border-t-4 border-border-dark bg-surface shadow-pixel-container">
@@ -464,6 +630,19 @@
         let currentTasksFolder = "root_tasks";
         let currentSearchQuery = ""; // State for search
         
+        // Settings State
+        let settings = {
+            font: 'font-display',
+            bg: 'bg-default',
+            colorPrimary: '#4ade80',
+            colorSecondary: '#a855f7',
+            colorText: '#f0fdf4',
+            contentFontSize: '0.6rem',
+            lineHeight: 'leading-normal',
+            compact: false,
+            scale: 100
+        };
+
         // Audio State
         let mediaRecorder = null;
         let audioChunks = [];
@@ -773,6 +952,9 @@
                 // Reset search when navigating folders if desired, or keep it. 
                 // For now, we keep state but could clear: currentSearchQuery = ""; notesSearchInput.value = "";
                 renderNotesList();
+            } else if (hash.startsWith('#page-settings')) {
+                currentPageId = 'page-settings';
+                initSettingsUI();
             } else {
                 currentPageId = 'page-notes-list';
                 currentNotesFolder = 'root_notes';
@@ -837,6 +1019,9 @@
             } else if (pageId === 'page-task-edit') {
                 headerTitle.textContent = taskEditId.value ? 'Edit Quest' : 'New Quest';
                 headerIcon.textContent = 'edit_note';
+            } else if (pageId === 'page-settings') {
+                headerTitle.textContent = 'Settings';
+                headerIcon.textContent = 'settings';
             }
         }
 
@@ -1535,6 +1720,23 @@
             }
         }
 
+        function ensureCleanEditorState() {
+            // Fix: If editor is empty and browser thinks it's bold, toggle it off.
+            const editor = document.getElementById('note-edit-content');
+            if (editor.innerText.trim().length === 0) {
+                 if (document.queryCommandState('bold')) {
+                     document.execCommand('bold', false, null);
+                 }
+                 if (document.queryCommandState('italic')) {
+                     document.execCommand('italic', false, null);
+                 }
+                 if (document.queryCommandState('underline')) {
+                     document.execCommand('underline', false, null);
+                 }
+            }
+            updateFormatButtons();
+        }
+
         // --- Item Reordering ---
         async function updateItemOrder() {
             const itemElements = [...notesListContainer.children];
@@ -1560,6 +1762,8 @@
         // --- Event Listeners ---
         function setupDragAndDrop() {
             let draggedItem = null;
+            let autoScrollFrame = null;
+            let dragClientY = 0;
 
             const handleDragStart = (e) => {
                 const target = e.target.closest('[draggable="true"]');
@@ -1571,6 +1775,10 @@
             };
 
             const handleDragEnd = () => {
+                if (autoScrollFrame) {
+                    cancelAnimationFrame(autoScrollFrame);
+                    autoScrollFrame = null;
+                }
                 if (!draggedItem) return;
                 draggedItem.classList.remove('dragging', 'no-pointer-events');
                 document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
@@ -1580,8 +1788,10 @@
 
             const handleDragOver = (e) => {
                 e.preventDefault();
+                dragClientY = e.clientY || (e.touches && e.touches[0].clientY);
+
                 const container = e.currentTarget;
-                const afterElement = getDragAfterElement(container, e.clientY);
+                const afterElement = getDragAfterElement(container, dragClientY);
                 const folderTarget = e.target.closest('[data-type="folder"]');
 
                 document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
@@ -1595,13 +1805,22 @@
                 }
 
                 // Autoscroll logic
-                const scrollThreshold = 80; 
-                const scrollSpeed = 10; 
+                if (!autoScrollFrame) {
+                    const scrollLoop = () => {
+                        const scrollThreshold = 80;
+                        const scrollSpeed = 15;
 
-                if (e.clientY < scrollThreshold) {
-                    window.scrollBy(0, -scrollSpeed);
-                } else if (e.clientY > window.innerHeight - scrollThreshold) {
-                    window.scrollBy(0, scrollSpeed);
+                        if (dragClientY < scrollThreshold) {
+                            window.scrollBy(0, -scrollSpeed);
+                            autoScrollFrame = requestAnimationFrame(scrollLoop);
+                        } else if (dragClientY > window.innerHeight - scrollThreshold) {
+                            window.scrollBy(0, scrollSpeed);
+                            autoScrollFrame = requestAnimationFrame(scrollLoop);
+                        } else {
+                            autoScrollFrame = null;
+                        }
+                    };
+                    scrollLoop();
                 }
             };
 
@@ -1699,6 +1918,49 @@
             });
             document.getElementById('notes-add-new-folder-button').addEventListener('click', () => createNewFolder('note'));
             document.getElementById('todos-add-new-folder-button').addEventListener('click', () => createNewFolder('task'));
+            document.getElementById('settings-button').addEventListener('click', () => {
+                location.hash = '#page-settings';
+            });
+
+            // Settings Listeners
+            document.getElementById('setting-font').addEventListener('change', (e) => {
+                settings.font = e.target.value;
+                saveSettings();
+            });
+            document.getElementById('setting-bg').addEventListener('change', (e) => {
+                settings.bg = e.target.value;
+                saveSettings();
+            });
+            document.getElementById('setting-color-primary').addEventListener('change', (e) => {
+                settings.colorPrimary = e.target.value;
+                saveSettings();
+            });
+            document.getElementById('setting-color-secondary').addEventListener('change', (e) => {
+                settings.colorSecondary = e.target.value;
+                saveSettings();
+            });
+            document.getElementById('setting-color-text').addEventListener('change', (e) => {
+                settings.colorText = e.target.value;
+                saveSettings();
+            });
+            document.getElementById('setting-content-size').addEventListener('input', (e) => {
+                settings.contentFontSize = `${e.target.value}rem`;
+                document.getElementById('setting-content-size-value').textContent = settings.contentFontSize;
+                saveSettings();
+            });
+            document.getElementById('setting-line-height').addEventListener('change', (e) => {
+                settings.lineHeight = e.target.value;
+                saveSettings();
+            });
+            document.getElementById('setting-compact').addEventListener('change', (e) => {
+                settings.compact = e.target.checked;
+                saveSettings();
+            });
+            document.getElementById('setting-scale').addEventListener('input', (e) => {
+                settings.scale = e.target.value;
+                document.getElementById('setting-scale-value').textContent = `${settings.scale}%`;
+                saveSettings();
+            });
 
             // Search Listener
             notesSearchInput.addEventListener('input', (e) => {
@@ -1734,7 +1996,12 @@
             document.getElementById('cancel-camera-button').addEventListener('click', closeCamera);
 
             const editor = document.getElementById('note-edit-content');
-            editor.addEventListener('focus', updateFormatButtons);
+            editor.addEventListener('focus', () => {
+                setTimeout(ensureCleanEditorState, 0);
+            });
+            editor.addEventListener('click', () => {
+                 setTimeout(ensureCleanEditorState, 0);
+            });
             editor.addEventListener('input', updateFormatButtons);
             document.addEventListener('selectionchange', () => {
                 if (document.activeElement === editor) {
@@ -2054,9 +2321,90 @@
             reader.readAsText(file);
         }
 
+        // --- Settings Logic ---
+        function loadSettings() {
+            const saved = localStorage.getItem('pixel-settings');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    settings = { ...settings, ...parsed };
+                } catch (e) {
+                    console.error("Failed to load settings", e);
+                }
+            }
+            applySettings();
+        }
+
+        function saveSettings() {
+            localStorage.setItem('pixel-settings', JSON.stringify(settings));
+            applySettings();
+        }
+
+        function applySettings() {
+            // Font
+            const fontClasses = ['font-display', 'font-sans', 'font-serif', 'font-mono', 'font-Inter', 'font-Roboto', 'font-Open-Sans', 'font-Lato', 'font-Montserrat', 'font-Merriweather'];
+            document.body.classList.remove(...fontClasses);
+
+            let fontClass = settings.font;
+            if (fontClass === 'font-display') {
+                 document.body.classList.add('font-display');
+            } else {
+                 if (!fontClass.startsWith('font-') && fontClass !== 'Inter' && fontClass !== 'Roboto') {
+                     fontClass = 'font-' + fontClass.replace(' ', '-');
+                 } else if (!fontClass.startsWith('font-')) {
+                     fontClass = 'font-' + fontClass;
+                 }
+                 document.body.classList.add(fontClass);
+            }
+
+            // Background
+            const bgClasses = ['bg-solid-black', 'bg-solid-gray', 'bg-midnight', 'bg-forest', 'bg-pattern-grid', 'bg-pattern-dots'];
+            document.body.classList.remove(...bgClasses);
+            if (settings.bg !== 'bg-default') {
+                document.body.classList.add(settings.bg);
+            }
+
+            // Colors (CSS Variables)
+            const root = document.documentElement;
+            root.style.setProperty('--color-primary', settings.colorPrimary);
+            root.style.setProperty('--color-secondary', settings.colorSecondary);
+            root.style.setProperty('--color-text-light', settings.colorText);
+            root.style.setProperty('--content-font-size', settings.contentFontSize);
+
+            // Line Height
+            const lineHeightClasses = ['leading-normal', 'leading-relaxed', 'leading-loose'];
+            document.body.classList.remove(...lineHeightClasses);
+            document.body.classList.add(settings.lineHeight);
+
+            // Compact
+            if (settings.compact) {
+                document.body.classList.add('compact-mode');
+            } else {
+                document.body.classList.remove('compact-mode');
+            }
+
+            // Scale
+            document.documentElement.style.fontSize = `${settings.scale}%`;
+        }
+
+        function initSettingsUI() {
+            document.getElementById('setting-font').value = settings.font;
+            document.getElementById('setting-bg').value = settings.bg;
+            document.getElementById('setting-color-primary').value = settings.colorPrimary;
+            document.getElementById('setting-color-secondary').value = settings.colorSecondary;
+            document.getElementById('setting-color-text').value = settings.colorText;
+            document.getElementById('setting-content-size').value = parseFloat(settings.contentFontSize);
+            document.getElementById('setting-content-size-value').textContent = settings.contentFontSize;
+            document.getElementById('setting-line-height').value = settings.lineHeight;
+            document.getElementById('setting-compact').checked = settings.compact;
+            document.getElementById('setting-scale').value = settings.scale;
+            document.getElementById('setting-scale-value').textContent = `${settings.scale}%`;
+        }
+
         // --- App Initialization ---
         async function main() {
             await initDB();
+            loadSettings();
             
             unlockButton.addEventListener('click', handleUnlock);
             passwordInput.addEventListener('keyup', (e) => {
