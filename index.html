@@ -17,9 +17,6 @@
     <!-- Additional Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Merriweather:wght@400;700&display=swap" rel="stylesheet">
 
-    <!-- Additional Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Merriweather:wght@400;700&display=swap" rel="stylesheet">
-
     <script src="turndown.js"></script>
     <script>
         tailwind.config = {
@@ -27,11 +24,11 @@
             theme: {
                 extend: {
                     colors: {
-                        "primary": "#4ade80", // Bright Pixel Green
-                        "secondary": "#a855f7", // Bright Pixel Purple
+                        "primary": "var(--color-primary)", // Bright Pixel Green
+                        "secondary": "var(--color-secondary)", // Bright Pixel Purple
                         "background-dark": "#1e1b4b", // Deep Indigo
                         "surface": "#312e81", // Dark Indigo
-                        "text-light": "#f0fdf4", // Off-white/Light Green
+                        "text-light": "var(--color-text-light)", // Off-white/Light Green
                         "text-meta": "#a5b4fc", // Lighter Indigo for meta
                         "border-light": "#4f46e5", // Indigo Border
                         "border-dark": "#1e1b4b", // Darker Indigo for inset effect
@@ -59,6 +56,13 @@
     </script>
 
     <style>
+        :root {
+            --color-primary: #4ade80;
+            --color-secondary: #a855f7;
+            --color-text-light: #f0fdf4;
+            --content-font-size: 0.6rem; /* Default text-xs size */
+        }
+
         .material-symbols-outlined {
             font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
             font-size: 1.25rem;
@@ -91,11 +95,11 @@
         
         /* Unified Form Input */
         .pixel-input {
-           @apply h-12 w-full resize-none border-2 border-border-light px-4 shadow-pixel-container-inset focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary;
+           @apply h-14 w-full resize-none border-2 border-border-light px-4 shadow-pixel-container-inset focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary;
            appearance: none;
            background-color: #f0fdf4 !important;
            color: #000000 !important;
-           font-size: 0.6rem;
+           font-size: var(--content-font-size) !important;
         }
         .pixel-input::placeholder {
             color: #1e1b4b !important;
@@ -108,7 +112,7 @@
            padding-bottom: 0.75rem;
            background-color: #f0fdf4 !important;
            color: #000000 !important;
-           font-size: 0.6rem;
+           font-size: var(--content-font-size) !important;
            font-weight: 400;
            white-space: pre-wrap;
            word-wrap: break-word;
@@ -157,6 +161,7 @@
             word-wrap: break-word;
             overflow-wrap: break-word;
             word-break: break-all;
+            font-size: var(--content-font-size) !important;
         }
 
         .note-content-display img {
@@ -306,7 +311,39 @@
         </div>
     </div>
 
+    <div id="audio-option-modal" class="fixed inset-0 z-30 flex hidden items-center justify-center bg-background-dark/80">
+        <div class="flex flex-col items-center gap-4 rounded border-2 border-border-light bg-surface p-8 shadow-pixel-container">
+            <h3 class="text-sm font-bold uppercase text-primary text-shadow-pixel">Add Audio</h3>
+            <button id="audio-record-new-btn" class="pixel-button mt-2 h-14 w-full text-sm uppercase">
+                <span class="material-symbols-outlined mr-2">mic</span> Record New
+            </button>
+            <button id="audio-upload-file-btn" class="pixel-button-secondary h-14 w-full text-sm uppercase">
+                <span class="material-symbols-outlined mr-2">upload_file</span> Upload File
+            </button>
+            <button id="audio-cancel-btn" class="pixel-button-surface mt-2 h-14 w-full text-sm uppercase bg-transparent border-0 shadow-none hover:translate-x-0 hover:translate-y-0 hover:shadow-none hover:underline">
+                Cancel
+            </button>
+            <input type="file" id="audio-file-input" class="hidden" accept="audio/*">
+        </div>
+    </div>
+
     <div id="app-container" class="relative flex min-h-screen w-full flex-col" style="display: none;">
+
+        <div id="sidebar-overlay" class="fixed inset-0 z-40 hidden bg-black/50 backdrop-blur-sm transition-opacity"></div>
+        
+        <aside id="directory-sidebar" class="fixed inset-y-0 left-0 z-50 w-64 transform -translate-x-full border-r-4 border-border-dark bg-surface transition-transform duration-300 ease-in-out shadow-pixel-container">
+            <div class="flex h-full flex-col">
+                <div class="flex items-center justify-between border-b-4 border-border-dark p-4 bg-surface">
+                    <h2 class="text-xs font-bold uppercase text-primary text-shadow-pixel">Directories</h2>
+                    <button id="close-sidebar-btn" class="text-secondary hover:text-primary">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+                <div id="directory-tree-container" class="flex-1 overflow-y-auto p-4 space-y-2">
+                    <!-- Tree content injected here -->
+                </div>
+            </div>
+        </aside>
 
         <header id="app-header" class="sticky top-0 z-10 flex items-center justify-between border-b-4 border-border-dark bg-surface p-4 pb-3 shadow-pixel-container">
             <div class="flex size-10 shrink-0 items-center justify-center text-secondary">
@@ -314,6 +351,7 @@
             </div>
             <h1 class="flex-1 text-center text-sm font-bold uppercase tracking-wider text-primary text-shadow-pixel" id="header-title">Pixel Keep</h1>
             <div class="flex items-center justify-end gap-2">
+                <button id="move-out-button" class="pixel-button-surface hidden" title="Move to Parent Folder"><span class="material-symbols-outlined">arrow_upward</span></button>
                 <button id="export-selected-button" class="pixel-button-surface hidden"><span class="material-symbols-outlined">download_for_offline</span></button>
                 <button id="delete-selected-button" class="pixel-button-surface hidden bg-danger"><span class="material-symbols-outlined">delete</span></button>
                 <button id="export-button" class="pixel-button-surface"><span class="material-symbols-outlined">file_download</span></button>
@@ -518,13 +556,21 @@
                     </div>
 
                     <div class="mb-3 flex items-center justify-between">
+                        <span class="text-xs text-text-light">Primary Color</span>
+                        <input type="color" id="setting-primary-color" value="#4ade80" class="pixel-input !h-8 !w-40 !p-1">
+                    </div>
+                    <div class="mb-3 flex items-center justify-between">
+                        <span class="text-xs text-text-light">Secondary Color</span>
+                        <input type="color" id="setting-secondary-color" value="#a855f7" class="pixel-input !h-8 !w-40 !p-1">
+                    </div>
+                    <div class="mb-3 flex items-center justify-between">
                         <span class="text-xs text-text-light">Text Color</span>
                         <select id="setting-text-color" class="pixel-input !h-8 !w-40 !text-xs">
-                            <option value="text-default">Default (Off-White)</option>
-                            <option value="text-white">Pure White</option>
-                            <option value="text-gray">Comfort Gray</option>
-                            <option value="text-terminal-green">Terminal Green</option>
-                            <option value="text-terminal-amber">Terminal Amber</option>
+                            <option value="#f0fdf4">Default (Off-White)</option>
+                            <option value="#ffffff">Pure White</option>
+                            <option value="#d1d5db">Comfort Gray</option>
+                            <option value="#4ade80">Terminal Green</option>
+                            <option value="#f59e0b">Terminal Amber</option>
                         </select>
                     </div>
 
@@ -548,6 +594,14 @@
                             <span id="setting-scale-value" class="text-xs text-primary">100%</span>
                          </div>
                          <input type="range" id="setting-scale" min="75" max="125" step="5" value="100" class="w-full accent-primary">
+                    </div>
+
+                    <div class="flex flex-col gap-2 mt-4">
+                         <div class="flex justify-between">
+                            <span class="text-xs text-text-light">Content Font Size</span>
+                            <span id="setting-content-font-size-value" class="text-xs text-primary">100%</span>
+                         </div>
+                         <input type="range" id="setting-content-font-size" min="80" max="120" step="5" value="100" class="w-full accent-primary">
                     </div>
                 </div>
 
@@ -595,10 +649,13 @@
         let settings = {
             font: 'font-display',
             bg: 'bg-default',
-            textColor: 'text-default',
+            primaryColor: '#4ade80', // Default green
+            secondaryColor: '#a855f7', // Default purple
+            textColor: '#f0fdf4',
             lineHeight: 'leading-normal',
             compact: false,
-            scale: 100
+            scale: 100,
+            contentFontSize: 100 // Percentage
         };
 
         // Audio State
@@ -791,8 +848,63 @@
         
         // --- Audio Functions ---
         function setupAudioListeners() {
-            recordBtn.addEventListener('click', toggleRecording);
+            recordBtn.addEventListener('click', handleMicClick);
             noteDeleteAudioBtn.addEventListener('click', deleteAudio);
+            
+            // Modal Listeners
+            document.getElementById('audio-record-new-btn').addEventListener('click', () => {
+                hideAudioOptions();
+                startRecording();
+            });
+            
+            document.getElementById('audio-upload-file-btn').addEventListener('click', () => {
+                hideAudioOptions();
+                document.getElementById('audio-file-input').click();
+            });
+            
+            document.getElementById('audio-cancel-btn').addEventListener('click', hideAudioOptions);
+            
+            document.getElementById('audio-file-input').addEventListener('change', handleAudioFileUpload);
+        }
+
+        function handleMicClick() {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                showAudioOptions();
+            }
+        }
+
+        function showAudioOptions() {
+            document.getElementById('audio-option-modal').classList.remove('hidden');
+        }
+
+        function hideAudioOptions() {
+            document.getElementById('audio-option-modal').classList.add('hidden');
+        }
+
+        async function handleAudioFileUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Max file size check (e.g., 10MB to respect IndexedDB limits roughly)
+            if (file.size > 10 * 1024 * 1024) {
+                alert("File is too large. Please select an audio file under 10MB.");
+                e.target.value = ''; // Reset input
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                currentAudioBase64 = event.target.result;
+                updateAudioUI(currentAudioBase64);
+            };
+            reader.onerror = (err) => {
+                console.error("Error reading audio file:", err);
+                alert("Failed to read audio file.");
+            };
+            reader.readAsDataURL(file);
+            e.target.value = ''; // Reset input so same file can be selected again if needed
         }
 
         async function toggleRecording() {
@@ -943,6 +1055,7 @@
             const fabNewFolderTodos = document.getElementById('todos-add-new-folder-button');
             const exportSelectedBtn = document.getElementById('export-selected-button');
             const deleteSelectedBtn = document.getElementById('delete-selected-button');
+            const moveOutBtn = document.getElementById('move-out-button');
             
             fabNotes.classList.add('hidden');
             fabTodos.classList.add('hidden');
@@ -950,6 +1063,7 @@
             fabNewFolderTodos.classList.add('hidden');
             exportSelectedBtn.classList.add('hidden');
             deleteSelectedBtn.classList.add('hidden');
+            moveOutBtn.classList.add('hidden');
 
             if (pageId.includes('notes-list')) {
                 headerTitle.textContent = 'Pixel Keep';
@@ -961,9 +1075,28 @@
                 if (selectedItems.length > 0) {
                     exportSelectedBtn.classList.remove('hidden');
                     deleteSelectedBtn.classList.remove('hidden');
+                    if (currentNotesFolder !== 'root_notes') {
+                        moveOutBtn.classList.remove('hidden');
+                    }
                 }
 
             } else if (pageId.includes('todos-list')) {
+                headerTitle.textContent = 'Quest Log';
+                headerIcon.textContent = 'task_alt';
+                fabTodos.classList.remove('hidden');
+                fabNewFolderTodos.classList.remove('hidden');
+                
+                const selectedItems = document.querySelectorAll('.task-toggle-btn:checked, .folder-select-checkbox:checked');
+                // Note: tasks use .task-toggle-btn for completion, but we need selection for moving. 
+                // The current implementation of tasks list DOES NOT have selection checkboxes for bulk actions like notes do.
+                // It only has completion toggles. 
+                // Let's double check renderTasksList.
+                // renderTasksList has `task-toggle-btn` which toggles completion. It does NOT have a separate select checkbox.
+                // For now, I will only enable this for NOTES as requested ("move notes OUT"). 
+                // If the user wants tasks, I'd need to add selection checkboxes to tasks first.
+                // The prompt specifically said "move notes".
+                
+            } else if (pageId === 'page-note-edit') {
                 headerTitle.textContent = 'Quest Log';
                 headerIcon.textContent = 'task_alt';
                 fabTodos.classList.remove('hidden');
@@ -1861,7 +1994,266 @@
             }
         }
 
+        // --- Sidebar Logic ---
+        const sidebar = document.getElementById('directory-sidebar');
+        const sidebarOverlay = document.getElementById('sidebar-overlay');
+        const closeSidebarBtn = document.getElementById('close-sidebar-btn');
+        const directoryTreeContainer = document.getElementById('directory-tree-container');
+        
+        let expandedFolders = new Set(['root_notes']);
+        let touchStartX = 0;
+        let touchEndX = 0;
+
+        function openSidebar() {
+            sidebar.classList.remove('-translate-x-full');
+            sidebarOverlay.classList.remove('hidden');
+            renderDirectoryTree();
+        }
+
+        function closeSidebar() {
+            sidebar.classList.add('-translate-x-full');
+            sidebarOverlay.classList.add('hidden');
+        }
+
+        async function renderDirectoryTree() {
+            try {
+                directoryTreeContainer.innerHTML = '<div class="text-xs text-text-meta">Loading...</div>';
+                
+                // Determine Context based on visibility or hash
+                const isTasks = !document.getElementById('page-todos-list').classList.contains('hidden') || 
+                                location.hash.includes('page-todos-list') || 
+                                location.hash.includes('page-task-edit');
+                
+                const rootId = isTasks ? 'root_tasks' : 'root_notes';
+                const targetType = isTasks ? 'task' : 'note';
+                const homeLabel = isTasks ? 'Quest Log' : 'Home';
+                const homeIcon = isTasks ? 'task_alt' : 'home';
+                
+                const encryptedNodes = await db.getAll('fs_nodes');
+                const allNodes = encryptedNodes.map(n => decrypt(n.data, password)).filter(Boolean);
+                
+                // Build Tree Structure
+                const folderMap = {};
+                // Initialize folders
+                allNodes.forEach(node => {
+                    if (node.type === 'folder') {
+                        folderMap[node.id] = { ...node, children: [] };
+                    }
+                });
+
+                const tree = [];
+                
+                // Assign children
+                allNodes.forEach(node => {
+                    // IMPORTANT: Use the enhanced folder object from map if it's a folder
+                    const item = node.type === 'folder' ? folderMap[node.id] : node;
+                    
+                    // Filter based on context (Notes vs Tasks)
+                    // We only want items that belong to our current root hierarchy
+                    
+                    // Helper to check if a node belongs to current root (basic check)
+                    // For deeper validation we might need to traverse up, but assuming parentId validity:
+                    const isItemForContext = (node.type === 'folder' || node.type === targetType);
+                    
+                    if (!isItemForContext) return;
+
+                    if (node.parentId === rootId) {
+                        tree.push(item);
+                    } else if (folderMap[node.parentId]) {
+                        folderMap[node.parentId].children.push(item);
+                    }
+                });
+
+                const sortNodes = (nodes) => {
+                    if (!nodes) return [];
+                    return nodes.sort((a, b) => {
+                        // Folders first, then items
+                        if (a.type !== b.type) {
+                            return a.type === 'folder' ? -1 : 1;
+                        }
+                        return (a.name || '').localeCompare(b.name || '');
+                    });
+                };
+
+                const buildHtml = (nodes, level = 0) => {
+                    let html = '';
+                    const sorted = sortNodes(nodes);
+                    
+                    for (const node of sorted) {
+                        const padding = level * 12;
+                        const isExpanded = expandedFolders.has(node.id);
+                        
+                        if (node.type === 'folder') {
+                            html += `
+                                <div class="mb-1 select-none">
+                                    <div class="flex items-center gap-1 p-2 hover:bg-surface/50 rounded border border-transparent hover:border-border-light transition-colors directory-item-folder group" 
+                                         data-id="${node.id}" style="padding-left: ${padding}px">
+                                         
+                                        <button class="folder-toggle-btn p-1 text-text-meta hover:text-primary rounded focus:outline-none" data-id="${node.id}">
+                                            <span class="material-symbols-outlined text-lg transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}">arrow_right</span>
+                                        </button>
+                                        
+                                        <div class="flex items-center gap-2 flex-1 overflow-hidden folder-label" data-id="${node.id}">
+                                            <span class="material-symbols-outlined text-lg text-secondary group-hover:text-primary">folder</span>
+                                            <span class="text-xs text-text-light truncate">${node.name}</span>
+                                        </div>
+                                    </div>
+                                    <div class="folder-children ${isExpanded ? '' : 'hidden'}" id="children-${node.id}">
+                                        ${buildHtml(node.children, level + 1)}
+                                    </div>
+                                </div>
+                            `;
+                        } else if (node.type === 'note') {
+                            html += `
+                                <div class="mb-1">
+                                    <div class="flex items-center gap-2 p-2 hover:bg-surface/50 cursor-pointer rounded border border-transparent hover:border-border-light transition-colors directory-item-note" 
+                                         data-id="${node.id}" data-item-ref-id="${node.itemRefId}" style="padding-left: ${padding + 28}px">
+                                        <span class="material-symbols-outlined text-lg text-text-meta">description</span>
+                                        <span class="text-xs text-text-light truncate">${node.name}</span>
+                                    </div>
+                                </div>
+                            `;
+                        } else if (node.type === 'task') {
+                            html += `
+                                <div class="mb-1">
+                                    <div class="flex items-center gap-2 p-2 hover:bg-surface/50 cursor-pointer rounded border border-transparent hover:border-border-light transition-colors directory-item-task" 
+                                         data-id="${node.id}" data-item-ref-id="${node.itemRefId}" style="padding-left: ${padding + 28}px">
+                                        <span class="material-symbols-outlined text-lg text-text-meta">check_circle</span>
+                                        <span class="text-xs text-text-light truncate">${node.name}</span>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    }
+                    return html;
+                };
+
+                let html = `
+                    <div class="mb-2 select-none">
+                        <div class="flex items-center gap-2 p-2 bg-primary/10 cursor-pointer rounded border border-primary/30 directory-item-home" data-id="${rootId}">
+                            <span class="material-symbols-outlined text-lg text-primary">${homeIcon}</span>
+                            <span class="text-xs text-primary font-bold">${homeLabel}</span>
+                        </div>
+                    </div>
+                `;
+
+                html += buildHtml(tree);
+                directoryTreeContainer.innerHTML = html;
+
+                // Attach Listeners
+                
+                // Toggle Buttons
+                document.querySelectorAll('.folder-toggle-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const id = e.currentTarget.dataset.id;
+                        if (expandedFolders.has(id)) {
+                            expandedFolders.delete(id);
+                        } else {
+                            expandedFolders.add(id);
+                        }
+                        renderDirectoryTree();
+                    });
+                });
+
+                // Folder Click
+                document.querySelectorAll('.folder-label').forEach(item => {
+                    item.addEventListener('click', (e) => {
+                        const folderId = e.currentTarget.dataset.id;
+                        if (isTasks) {
+                             currentTasksFolder = folderId;
+                             location.hash = `#page-todos-list/${folderId}`;
+                        } else {
+                             currentNotesFolder = folderId;
+                             notesSearchInput.value = "";
+                             currentSearchQuery = "";
+                             location.hash = `#page-notes-list/${folderId}`;
+                        }
+                        closeSidebar();
+                    });
+                });
+
+                // Home Click
+                 document.querySelector('.directory-item-home').addEventListener('click', () => {
+                    if (isTasks) {
+                        currentTasksFolder = 'root_tasks';
+                        location.hash = `#page-todos-list/root_tasks`;
+                    } else {
+                        currentNotesFolder = 'root_notes';
+                        notesSearchInput.value = "";
+                        currentSearchQuery = "";
+                        location.hash = `#page-notes-list/root_notes`;
+                    }
+                    closeSidebar();
+                });
+
+                // Note Click
+                document.querySelectorAll('.directory-item-note').forEach(item => {
+                    item.addEventListener('click', (e) => {
+                        const noteId = e.currentTarget.dataset.itemRefId;
+                        location.hash = `#page-note-details/${noteId}`;
+                        closeSidebar();
+                    });
+                });
+
+                // Task Click
+                document.querySelectorAll('.directory-item-task').forEach(item => {
+                    item.addEventListener('click', (e) => {
+                        const taskId = e.currentTarget.dataset.itemRefId;
+                        location.hash = `#page-task-edit/${taskId}`;
+                        closeSidebar();
+                    });
+                });
+
+            } catch (err) {
+                console.error("Error rendering directory:", err);
+                directoryTreeContainer.innerHTML = '<div class="text-xs text-danger">Error loading directory.</div>';
+            }
+        }
+        
+        function handleTouchStart(e) {
+            touchStartX = e.changedTouches[0].screenX;
+        }
+        
+        function handleTouchMove(e) {
+            // simple swipe detection
+        }
+
+        function handleTouchEnd(e) {
+            touchEndX = e.changedTouches[0].screenX;
+            handleSwipeGesture();
+        }
+        
+        function handleSwipeGesture() {
+            const swipeDistance = touchEndX - touchStartX;
+            const swipeThreshold = 100; // px
+            
+            // Swipe Right (Open) - only if started near left edge
+            if (touchStartX < 50 && swipeDistance > swipeThreshold) {
+                openSidebar();
+            }
+            
+            // Swipe Left (Close) - if sidebar is open
+            if (!sidebar.classList.contains('-translate-x-full') && swipeDistance < -swipeThreshold) {
+                closeSidebar();
+            }
+        }
+
         function setupEventListeners() {
+            // Sidebar Listeners
+            document.getElementById('header-icon').parentElement.addEventListener('click', (e) => {
+                // Check if we are in notes list OR todos list
+                if (!document.getElementById('page-notes-list').classList.contains('hidden') || 
+                    !document.getElementById('page-todos-list').classList.contains('hidden')) {
+                     openSidebar();
+                }
+            });
+            closeSidebarBtn.addEventListener('click', closeSidebar);
+            sidebarOverlay.addEventListener('click', closeSidebar);
+            
+            document.addEventListener('touchstart', handleTouchStart, false);
+            document.addEventListener('touchend', handleTouchEnd, false);
+
             window.addEventListener('hashchange', router);
             navButtons.forEach(btn => {
                 btn.addEventListener('click', () => {
@@ -2061,6 +2453,57 @@
                     updateUI(location.hash || '#page-notes-list');
                 }
             });
+        }
+
+        async function moveOutSelectedItems() {
+            // Currently only supports Notes view as Tasks don't have selection checkboxes yet
+            const isNotes = !document.getElementById('page-notes-list').classList.contains('hidden');
+            if (!isNotes) return;
+
+            const currentFolderId = currentNotesFolder;
+            if (currentFolderId === 'root_notes') return;
+
+            // Find parent folder ID
+            let targetParentId = 'root_notes';
+            const encryptedCurrentFolderNode = await db.get('fs_nodes', currentFolderId);
+            if (encryptedCurrentFolderNode) {
+                const currentFolderNode = decrypt(encryptedCurrentFolderNode.data, password);
+                targetParentId = currentFolderNode.parentId;
+            }
+
+            const selectedNoteCheckboxes = document.querySelectorAll('.note-select-checkbox:checked');
+            const selectedFolderCheckboxes = document.querySelectorAll('.folder-select-checkbox:checked');
+
+            if (selectedNoteCheckboxes.length === 0 && selectedFolderCheckboxes.length === 0) {
+                return;
+            }
+
+            // Move directly selected notes
+            const selectedNoteIds = Array.from(selectedNoteCheckboxes).map(cb => cb.dataset.id);
+            for (const noteId of selectedNoteIds) {
+                const nodeId = `note-${noteId}`;
+                const encryptedNode = await db.get('fs_nodes', nodeId);
+                if (encryptedNode) {
+                    const node = decrypt(encryptedNode.data, password);
+                    node.parentId = targetParentId;
+                    const newEncryptedData = encrypt(node, password);
+                    await db.put('fs_nodes', { id: nodeId, data: newEncryptedData });
+                }
+            }
+
+            // Move selected folders
+            const selectedFolderIds = Array.from(selectedFolderCheckboxes).map(cb => cb.dataset.id);
+            for (const folderId of selectedFolderIds) {
+                 const encryptedNode = await db.get('fs_nodes', folderId);
+                 if (encryptedNode) {
+                    const node = decrypt(encryptedNode.data, password);
+                    node.parentId = targetParentId;
+                    const newEncryptedData = encrypt(node, password);
+                    await db.put('fs_nodes', { id: folderId, data: newEncryptedData });
+                 }
+            }
+            
+            renderNotesList();
         }
 
         async function deleteSelectedItems() {
@@ -2268,20 +2711,22 @@
 
         // --- Settings Logic ---
         function loadSettings() {
-            const saved = localStorage.getItem('pixel-settings');
+            const saved = localStorage.getItem('pixel-settings-v2');
             if (saved) {
                 try {
                     const parsed = JSON.parse(saved);
                     settings = { ...settings, ...parsed };
                 } catch (e) {
                     console.error("Failed to load settings", e);
+                    // Clear corrupted settings
+                    localStorage.removeItem('pixel-settings-v2');
                 }
             }
             applySettings();
         }
 
         function saveSettings() {
-            localStorage.setItem('pixel-settings', JSON.stringify(settings));
+            localStorage.setItem('pixel-settings-v2', JSON.stringify(settings));
             applySettings();
         }
 
@@ -2291,14 +2736,10 @@
             document.body.classList.remove(...fontClasses);
             
             let fontClass = settings.font;
-            if (fontClass !== 'font-display') {
-                 if (!fontClass.startsWith('font-') && fontClass !== 'Inter' && fontClass !== 'Roboto') { 
-                     fontClass = 'font-' + fontClass.replace(' ', '-');
-                 } else if (!fontClass.startsWith('font-')) {
-                     fontClass = 'font-' + fontClass;
-                 }
-                 document.body.classList.add(fontClass);
+            if (!fontClass.startsWith('font-')) {
+                 fontClass = 'font-' + fontClass.replace(' ', '-');
             }
+            document.body.classList.add(fontClass);
 
             // Background
             const bgClasses = ['bg-solid-black', 'bg-solid-gray', 'bg-midnight', 'bg-forest', 'bg-pattern-grid', 'bg-pattern-dots'];
@@ -2307,12 +2748,11 @@
                 document.body.classList.add(settings.bg);
             }
 
-            // Text Color
-            const textClasses = ['text-white', 'text-gray', 'text-terminal-green', 'text-terminal-amber'];
-            document.body.classList.remove(...textClasses);
-            if (settings.textColor !== 'text-default') {
-                document.body.classList.add(settings.textColor);
-            }
+            // Colors
+            document.documentElement.style.setProperty('--color-primary', settings.primaryColor);
+            document.documentElement.style.setProperty('--color-secondary', settings.secondaryColor);
+            document.documentElement.style.setProperty('--color-text-light', settings.textColor);
+
 
             // Line Height
             const lineHeightClasses = ['leading-normal', 'leading-relaxed', 'leading-loose'];
@@ -2327,17 +2767,26 @@
             }
 
             // Scale
-            document.documentElement.style.fontSize = `${settings.scale}%`; 
+            document.documentElement.style.fontSize = `${settings.scale}%`;
+            
+            // Content Font Size
+            const baseSize = 0.6; // Base rem size for content
+            const newSize = baseSize * (settings.contentFontSize / 100);
+            document.documentElement.style.setProperty('--content-font-size', `${newSize}rem`);
         }
 
         function initSettingsUI() {
+            document.getElementById('setting-primary-color').value = settings.primaryColor;
+            document.getElementById('setting-secondary-color').value = settings.secondaryColor;
+            document.getElementById('setting-text-color').value = settings.textColor;
+            document.getElementById('setting-scale').value = settings.scale;
+            document.getElementById('setting-scale-value').textContent = `${settings.scale}%`;            
             document.getElementById('setting-font').value = settings.font;
             document.getElementById('setting-bg').value = settings.bg;
-            document.getElementById('setting-text-color').value = settings.textColor;
             document.getElementById('setting-line-height').value = settings.lineHeight;
             document.getElementById('setting-compact').checked = settings.compact;
-            document.getElementById('setting-scale').value = settings.scale;
-            document.getElementById('setting-scale-value').textContent = `${settings.scale}%`;
+            document.getElementById('setting-content-font-size').value = settings.contentFontSize;
+            document.getElementById('setting-content-font-size-value').textContent = `${settings.contentFontSize}%`;
         }
 
         // --- App Initialization ---
@@ -2352,9 +2801,49 @@
                 }
             });
 
+            // Settings Listeners
+            document.getElementById('setting-primary-color').addEventListener('input', (e) => {
+                settings.primaryColor = e.target.value;
+                saveSettings();
+            });
+            document.getElementById('setting-secondary-color').addEventListener('input', (e) => {
+                settings.secondaryColor = e.target.value;
+                saveSettings();
+            });
+            document.getElementById('setting-text-color').addEventListener('change', (e) => {
+                settings.textColor = e.target.value;
+                saveSettings();
+            });
+            document.getElementById('setting-scale').addEventListener('input', (e) => {
+                settings.scale = e.target.value;
+                document.getElementById('setting-scale-value').textContent = `${settings.scale}%`;
+                saveSettings();
+            });
+            document.getElementById('setting-font').addEventListener('change', (e) => {
+                settings.font = e.target.value;
+                saveSettings();
+            });
+            document.getElementById('setting-bg').addEventListener('change', (e) => {
+                settings.bg = e.target.value;
+                saveSettings();
+            });
+            document.getElementById('setting-line-height').addEventListener('change', (e) => {
+                settings.lineHeight = e.target.value;
+                saveSettings();
+            });
+            document.getElementById('setting-compact').addEventListener('change', (e) => {
+                settings.compact = e.target.checked;
+                saveSettings();
+            });
+            document.getElementById('setting-content-font-size').addEventListener('input', (e) => {
+                settings.contentFontSize = e.target.value;
+                document.getElementById('setting-content-font-size-value').textContent = `${settings.contentFontSize}%`;
+                saveSettings();
+            });
             document.getElementById('export-button').addEventListener('click', exportNotes);
             document.getElementById('export-selected-button').addEventListener('click', exportSelectedNotes);
             document.getElementById('delete-selected-button').addEventListener('click', deleteSelectedItems);
+            document.getElementById('move-out-button').addEventListener('click', moveOutSelectedItems);
             document.getElementById('import-button').addEventListener('click', () => {
                 document.getElementById('import-file-input').click();
             });
