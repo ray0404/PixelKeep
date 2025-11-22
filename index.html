@@ -117,7 +117,7 @@
            white-space: pre-wrap;
            word-wrap: break-word;
            overflow-wrap: break-word;
-           word-break: break-all;
+           word-break: normal;
            max-width: 100%;
            box-sizing: border-box;
         }
@@ -160,7 +160,7 @@
         .note-content-display {
             word-wrap: break-word;
             overflow-wrap: break-word;
-            word-break: break-all;
+            word-break: normal;
             font-size: var(--content-font-size) !important;
         }
 
@@ -188,6 +188,9 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: normal;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: normal;
         }
         
         /* Tag styling for clickable effect */
@@ -288,6 +291,18 @@
         body.font-Lato { font-family: 'Lato', sans-serif !important; }
         body.font-Montserrat { font-family: 'Montserrat', sans-serif !important; }
         body.font-Merriweather { font-family: 'Merriweather', serif !important; }
+
+        /* Word Wrap Classes */
+        body.wrap-mode-standard .pixel-textarea,
+        body.wrap-mode-standard .note-content-display {
+            word-break: normal !important; 
+            overflow-wrap: break-word !important; 
+        }
+        
+        body.wrap-mode-break-all .pixel-textarea,
+        body.wrap-mode-break-all .note-content-display {
+            word-break: break-all !important; 
+        }
     </style>
 </head>
 
@@ -582,6 +597,14 @@
                             <option value="leading-loose">Loose</option>
                         </select>
                     </div>
+
+                    <div class="mb-3 flex items-center justify-between">
+                        <span class="text-xs text-text-light">Word Wrap</span>
+                        <select id="setting-word-wrap" class="pixel-input !h-8 !w-40 !text-xs">
+                            <option value="true">Standard</option>
+                            <option value="false">Break All</option>
+                        </select>
+                    </div>
                     
                     <div class="mb-3 flex items-center justify-between">
                         <span class="text-xs text-text-light">Compact Mode</span>
@@ -655,7 +678,8 @@
             lineHeight: 'leading-normal',
             compact: false,
             scale: 100,
-            contentFontSize: 100 // Percentage
+            contentFontSize: 100, // Percentage
+            wordWrap: true
         };
 
         // Audio State
@@ -1123,6 +1147,32 @@
             return doc.body.textContent || "";
         }
 
+        async function copyToClipboard(text) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                 try {
+                     await navigator.clipboard.writeText(text);
+                     return true;
+                 } catch (e) {
+                     console.warn("Clipboard API failed, trying fallback", e);
+                 }
+            }
+            
+            try {
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                textarea.style.position = 'fixed';
+                textarea.style.left = '-9999px';
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                return true;
+            } catch (e) {
+                console.error("Fallback copy failed", e);
+                return false;
+            }
+        }
+
         async function renderNotesList() {
             const encryptedNodes = await db.getAll('fs_nodes');
             const allNodes = encryptedNodes
@@ -1367,7 +1417,27 @@
                     const note = decrypt(encryptedNote.data, password);
                     noteEditId.value = note.id;
                     noteEditTitle.value = note.title;
-                    noteEditContent.innerHTML = note.content;
+                    
+                    // Sanitize: Remove global wrapping <b> tags if present
+                    // Use DOMParser for safer parsing
+                    let content = note.content;
+                    const doc = new DOMParser().parseFromString(content, 'text/html');
+                    const body = doc.body;
+                    
+                    // If body has exactly one child and it is a <b> tag
+                    if (body.childNodes.length === 1 && body.firstChild.tagName === 'B') {
+                        content = body.firstChild.innerHTML;
+                    } 
+                    // Also check for <div><b>...</b></div> pattern
+                    else if (body.childNodes.length === 1 && body.firstChild.tagName === 'DIV') {
+                         const div = body.firstChild;
+                         if (div.childNodes.length === 1 && div.firstChild.tagName === 'B') {
+                              content = div.firstChild.innerHTML;
+                         }
+                    }
+
+                    noteEditContent.innerHTML = content;
+                    
                     noteEditTags.value = (note.tags || []).join(', ');
                     
                     // Load Audio
@@ -1812,17 +1882,28 @@
         }
 
         function ensureCleanEditorState() {
-            // Fix: If editor is empty and browser thinks it's bold, toggle it off.
             const editor = document.getElementById('note-edit-content');
-            if (editor.innerText.trim().length === 0) {
+            
+            // Check if selection is collapsed (cursor only, no text selected)
+            const selection = window.getSelection();
+            const isCollapsed = selection.isCollapsed;
+            
+            // If editor is empty OR (collapsed and bold is active but seemingly unintended)
+            if (editor.innerText.trim().length === 0 || isCollapsed) {
                  if (document.queryCommandState('bold')) {
-                     document.execCommand('bold', false, null);
+                     // Only toggle off if we are inside the editor
+                     if (editor.contains(selection.anchorNode)) {
+                         document.execCommand('bold', false, null);
+                     }
                  }
-                 if (document.queryCommandState('italic')) {
-                     document.execCommand('italic', false, null);
-                 }
-                 if (document.queryCommandState('underline')) {
-                     document.execCommand('underline', false, null);
+                 
+                 if (editor.innerText.trim().length === 0) {
+                     if (document.queryCommandState('italic')) {
+                         document.execCommand('italic', false, null);
+                     }
+                     if (document.queryCommandState('underline')) {
+                         document.execCommand('underline', false, null);
+                     }
                  }
             }
             updateFormatButtons();
@@ -2352,45 +2433,51 @@
                 document.getElementById('format-list').classList.remove('bg-primary', 'text-background-dark');
             });
 
-            document.getElementById('note-detail-copy-btn').addEventListener('click', async (e) => {
-                const id = e.currentTarget.dataset.id;
-                const encryptedNote = await getNoteById(id);
-                if (encryptedNote) {
-                    const note = decrypt(encryptedNote.data, password);
-                    const turndownService = new TurndownService();
-                    const markdownContent = turndownService.turndown(note.content);
-                    navigator.clipboard.writeText(markdownContent).then(() => {
+            document.getElementById('note-detail-copy-btn').addEventListener('click', (e) => {
+                const turndownService = new TurndownService();
+                const htmlContent = document.getElementById('note-detail-content').innerHTML;
+                const markdownContent = turndownService.turndown(htmlContent);
+                
+                // Call sync/async hybrid
+                copyToClipboard(markdownContent).then(success => {
+                    if (success) {
                         const icon = e.currentTarget.querySelector('.material-symbols-outlined');
                         icon.textContent = 'check';
                         setTimeout(() => {
                             icon.textContent = 'content_copy';
                         }, 1500);
-                    }).catch(err => {
-                        console.error('Failed to copy text: ', err);
+                    } else {
                         alert('Failed to copy note content.');
-                    });
-                }
+                    }
+                });
             });
 
             document.body.addEventListener('click', async (e) => {
                 if (e.target.closest('.note-copy-btn')) {
                     const button = e.target.closest('.note-copy-btn');
+                    // For list items, we still need to fetch because content is truncated/not fully in DOM.
+                    // However, we can try to fetch, THEN wait for user to click again? No that's bad UX.
+                    // We will rely on navigator.clipboard working for async.
+                    // For fallback in list view, it might fail if async.
+                    // But the prompt specifically mentioned the "View" page failing.
+                    
                     const id = button.dataset.id;
                     const encryptedNote = await getNoteById(id);
                     if (encryptedNote) {
                         const note = decrypt(encryptedNote.data, password);
                         const turndownService = new TurndownService();
                         const markdownContent = turndownService.turndown(note.content);
-                        navigator.clipboard.writeText(markdownContent).then(() => {
+                        
+                        const success = await copyToClipboard(markdownContent);
+                        if (success) {
                             const icon = button.querySelector('.material-symbols-outlined');
                             icon.textContent = 'check';
                             setTimeout(() => {
                                 icon.textContent = 'content_copy';
                             }, 1500);
-                        }).catch(err => {
-                            console.error('Failed to copy text: ', err);
-                            alert('Failed to copy note content.');
-                        });
+                        } else {
+                             alert('Failed to copy note content.');
+                        }
                     }
                 }
 
@@ -2773,6 +2860,15 @@
             const baseSize = 0.6; // Base rem size for content
             const newSize = baseSize * (settings.contentFontSize / 100);
             document.documentElement.style.setProperty('--content-font-size', `${newSize}rem`);
+
+            // Word Wrap
+            if (settings.wordWrap) {
+                document.body.classList.add('wrap-mode-standard');
+                document.body.classList.remove('wrap-mode-break-all');
+            } else {
+                document.body.classList.add('wrap-mode-break-all');
+                document.body.classList.remove('wrap-mode-standard');
+            }
         }
 
         function initSettingsUI() {
@@ -2787,6 +2883,7 @@
             document.getElementById('setting-compact').checked = settings.compact;
             document.getElementById('setting-content-font-size').value = settings.contentFontSize;
             document.getElementById('setting-content-font-size-value').textContent = `${settings.contentFontSize}%`;
+            document.getElementById('setting-word-wrap').value = settings.wordWrap.toString();
         }
 
         // --- App Initialization ---
@@ -2833,6 +2930,10 @@
             });
             document.getElementById('setting-compact').addEventListener('change', (e) => {
                 settings.compact = e.target.checked;
+                saveSettings();
+            });
+            document.getElementById('setting-word-wrap').addEventListener('change', (e) => {
+                settings.wordWrap = (e.target.value === 'true');
                 saveSettings();
             });
             document.getElementById('setting-content-font-size').addEventListener('input', (e) => {
