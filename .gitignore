@@ -79,3 +79,6 @@ NoteAppPWAref.md
 
 # Firebase Hosting config
 firebase.json
+.well-known/assetlinks.json
+PWABuilderAndroid.pdf
+myNotes.json

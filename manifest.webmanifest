@@ -1,20 +1,75 @@
 {
-  "short_name": "Pixel PWA",
   "name": "Pixel Keep & Quest Log",
+  "short_name": "Pixel Keep",
+  "description": "Secure, offline-first pixel art note taking and RPG style quest logging.",
+  "categories": ["productivity", "utilities", "lifestyle"],
+  "id": "/",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#1e1b4b",
+  "background_color": "#1e1b4b",
   "icons": [
     {
       "src": "icons/icon-192.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "purpose": "any maskable"
     },
     {
       "src": "icons/icon-512.png",
       "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "purpose": "any maskable"
     }
   ],
-  "start_url": ".",
-  "display": "standalone",
-  "theme_color": "#1e1b4b",
-  "background_color": "#1e1b4b"
+  "screenshots": [
+    {
+      "src": "Screenshots/Screenshot1.jpg",
+      "sizes": "1080x1920",
+      "type": "image/jpeg",
+      "platform": "narrow",
+      "label": "Secure Note Taking"
+    },
+    {
+      "src": "Screenshots/Screenshot2.jpg",
+      "sizes": "1080x1920",
+      "type": "image/jpeg",
+      "platform": "narrow",
+      "label": "RPG Quest Log"
+    },
+    {
+      "src": "Screenshots/Screenshot3.jpg",
+      "sizes": "1080x1920",
+      "type": "image/jpeg",
+      "platform": "narrow",
+      "label": "Customizable Settings"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "New Scroll",
+      "short_name": "New Note",
+      "url": "/index.html#page-note-edit",
+      "description": "Create a new secure note",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "New Quest",
+      "short_name": "New Task",
+      "url": "/index.html#page-task-edit",
+      "description": "Add a new task to your log",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ],
+  "share_target": {
+    "action": "/index.html#share-target",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"]
 }

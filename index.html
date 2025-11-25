@@ -2684,12 +2684,24 @@
                 try {
                     const importedNotes = JSON.parse(e.target.result);
                     if (Array.isArray(importedNotes)) {
-                        const tx = db.transaction('notes', 'readwrite');
+                        const tx = db.transaction(['notes', 'fs_nodes'], 'readwrite');
                         const promises = importedNotes.map((note, index) => {
                             if (note.title) {
-                                let noteId = typeof note.id === 'number' ? note.id : Date.now() + index;
-                                const encryptedData = encrypt({ ...note, id: noteId }, password);
-                                return tx.store.put({ id: noteId, data: encryptedData });
+                                const newNoteId = Date.now() + index; // Always generate a new ID to avoid collisions
+                                const encryptedData = encrypt({ ...note, id: newNoteId }, password);
+                                
+                                const fsNode = {
+                                    id: `note-${newNoteId}`,
+                                    parentId: currentNotesFolder, // Default to current folder for imported notes
+                                    type: "note",
+                                    name: note.title,
+                                    order: newNoteId, // Use new ID as order for now
+                                    itemRefId: newNoteId
+                                };
+                                const encryptedFsNode = encrypt(fsNode, password);
+                                tx.objectStore('fs_nodes').put({ id: fsNode.id, data: encryptedFsNode });
+
+                                return tx.objectStore('notes').put({ id: newNoteId, data: encryptedData });
                             }
                             return Promise.resolve();
                         });
