@@ -17,10 +17,13 @@ A secure, offline-first Progressive Web App (PWA) for creating and managing encr
 *   **Offline First:** Fully functional without an internet connection thanks to a Service Worker.
 *   **Secure & Private:** All your data is encrypted using AES via `crypto-js` and stored locally in your browser's IndexedDB.
 *   **Password Protection:** A password is required to unlock and decrypt your notes and quests.
-*   **Note Taking:** A simple rich text editor for your notes.
-*   **Quest Log:** A to-do list to keep track of your tasks.
+*   **Folder Organization:** Organize your notes and quests into nested folders for better structure.
+*   **Note Taking:** A rich text editor for notes that supports bold, italic, underline, lists, and embedding images.
+*   **Audio Recording:** Record and attach audio clips directly to your notes.
+*   **Quest Log:** A to-do list to keep track of your tasks with location, people, and time details.
+*   **Customizable Settings:** Personalize the experience with custom fonts, themes (colors/backgrounds), and interface scaling.
 *   **Image Support:** Embed images from your gallery or camera directly into your notes.
-*   **Data Portability:** Export and import your data as a JSON file.
+*   **Data Portability:** Export and import your data as JSON, Text, or Markdown files.
 *   **Installable:** As a PWA, PixelNotes can be installed on your desktop or mobile device for a native-app-like experience.
 
 ## Tech Stack
@@ -30,7 +33,7 @@ A secure, offline-first Progressive Web App (PWA) for creating and managing encr
 *   **Offline Storage:** IndexedDB with the `idb` library
 *   **Encryption:** `crypto-js`
 *   **PWA:** Service Worker and Web App Manifest
-*   **Deployment:** Firebase Hosting
+*   **Deployment:** Firebase Hosting, Replit
 
 ## Getting Started
 
@@ -46,7 +49,13 @@ You just need a modern web browser. To run it locally, you'll need a local web s
 2.  Navigate to the project directory.
 3.  Start a local web server.
 
-    *Using Python:*
+    *Using Python (Preferred):*
+    ```bash
+    python server.py
+    ```
+    Then open `http://localhost:5000` in your browser.
+
+    *Using Python (Simple):*
     ```bash
     python -m http.server
     ```

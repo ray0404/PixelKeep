@@ -8,7 +8,10 @@
       "**/node_modules/**",
       "GEMINI.md",
       "NoteAppPWAref.md",
-      "newUIelements/**"
+      "newUIelements/**",
+      "archive.zip",
+      "PWABuilderAndroid.pdf",
+      "myNotes.json"
     ],
     "rewrites": [
       {
