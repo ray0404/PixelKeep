@@ -86,3 +86,7 @@ __pycache__/
 *$py.class
 *.so
 .Python
+
+.well-known/assetlinks.json
+PWABuilderAndroid.pdf
+myNotes.json

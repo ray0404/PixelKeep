@@ -4,27 +4,27 @@ import time
 
 def verify_bold_fix(page: Page):
     page.goto("http://localhost:3000")
-
+    
     # Unlock
     page.wait_for_selector("#unlock-screen")
     page.fill("#password-input", "password")
     page.click("#unlock-button")
     page.wait_for_selector("#app-container")
-
+    
     # Go to Note Editor (New Note)
     page.click("#notes-add-new-button")
     page.wait_for_selector("#note-edit-content")
-
+    
     # Focus editor
     page.click("#note-edit-content")
-
+    
     # Wait for the setTimeout fix to run
     time.sleep(0.5)
-
+    
     # Check state
     is_bold = page.evaluate("document.queryCommandState('bold')")
     print(f"Bold State after focus: {is_bold}")
-
+    
     if not is_bold:
         print("PASS: Bold is correctly OFF after focus.")
     else:
