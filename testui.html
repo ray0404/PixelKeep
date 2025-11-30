@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pixel Notes UI Test</title>
+
+    <meta name="theme-color" content="#1e1b4b">
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "var(--color-primary)",
+                        "secondary": "var(--color-secondary)",
+                        "background-dark": "#1e1b4b",
+                        "surface": "#312e81",
+                        "text-light": "var(--color-text-light)",
+                        "text-meta": "#a5b4fc",
+                        "border-light": "#4f46e5",
+                        "border-dark": "#1e1b4b",
+                        "danger": "#ef4444",
+                        "warning": "#f59e0b",
+                    },
+                    fontFamily: {
+                        "display": ['"Press Start 2P"', "cursive"],
+                        "body": ['"VT323"', "monospace"],
+                    },
+                    boxShadow: {
+                        'pixel-btn': '2px 2px 0px 0px #1e1b4b',
+                        'pixel-btn-hover': '3px 3px 0px 0px #1e1b4b',
+                        'pixel-container': '4px 4px 0px 0px #1e1b4b',
+                        'pixel-container-inset': 'inset 2px 2px 0px 0px #1e1b4b, inset -2px -2px 0px 0px #4f46e5',
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0px",
+                    },
+                },
+            },
+        }
+    </script>
+
+    <style>
+        :root {
+            --color-primary: #4ade80;
+            --color-secondary: #a855f7;
+            --color-text-light: #f0fdf4;
+        }
+
+        body {
+            min-height: 100vh;
+            color: var(--color-text-light);
+            /* Default to the first pattern */
+            background-image: url('nanobanana-output/seamless_pixel_art_pattern_8bit_.png');
+            background-repeat: repeat;
+            background-size: 128px; 
+            image-rendering: pixelated; 
+            transition: background-image 0.3s ease-in-out;
+        }
+
+        .text-shadow-pixel {
+            text-shadow: 2px 2px 0px #1e1b4b;
+        }
+        
+        .bg-overlay {
+            background-color: rgba(30, 27, 75, 0.85);
+            min-height: 100vh;
+        }
+
+        .pixel-card {
+            background-color: #312e81;
+            border: 2px solid #4f46e5;
+            box-shadow: 4px 4px 0px 0px #1e1b4b;
+            padding: 1rem;
+        }
+
+        .pixel-btn {
+            background-color: var(--color-primary);
+            color: #1e1b4b;
+            border: 2px solid #1e1b4b;
+            box-shadow: 2px 2px 0px 0px #1e1b4b;
+            padding: 0.5rem 1rem;
+            font-family: "Press Start 2P", cursive;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.1s;
+        }
+
+        .pixel-btn:hover {
+            transform: translate(-1px, -1px);
+            box-shadow: 3px 3px 0px 0px #1e1b4b;
+        }
+
+        .pixel-btn:active {
+            transform: translate(1px, 1px);
+            box-shadow: 1px 1px 0px 0px #1e1b4b;
+        }
+
+        .pattern-preview {
+            width: 100%;
+            height: 100px;
+            border: 2px solid #4f46e5;
+            cursor: pointer;
+            image-rendering: pixelated;
+            background-repeat: repeat;
+            background-size: 64px;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        .pattern-preview:hover {
+            transform: scale(1.02);
+            box-shadow: 2px 2px 0px #1e1b4b;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-overlay p-8">
+        <header class="mb-10 text-center">
+            <h1 class="font-display text-3xl text-primary text-shadow-pixel mb-4">UI Playground</h1>
+            <p class="font-body text-xl text-text-meta">Testing components and styles</p>
+        </header>
+
+        <main class="max-w-4xl mx-auto grid gap-8">
+            
+            <!-- Section: Background Patterns -->
+            <section class="pixel-card">
+                <h2 class="font-display text-xl mb-4 text-secondary">Background Patterns</h2>
+                <p class="font-body text-lg mb-4">Click a pattern to preview it on the full page background.</p>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <!-- Pattern 1 (Original) -->
+                    <div class="space-y-2">
+                        <div class="pattern-preview" 
+                             style="background-image: url('nanobanana-output/seamless_pixel_art_pattern_8bit_.png');"
+                             onclick="setPattern('nanobanana-output/seamless_pixel_art_pattern_8bit_.png')"></div>
+                        <p class="font-body text-center text-sm">Geometric</p>
+                    </div>
+
+                    <!-- Pattern 2 (Space) -->
+                    <div class="space-y-2">
+                        <div class="pattern-preview" 
+                             style="background-image: url('nanobanana-output/seamless_pixel_art_pattern_8bit__1.png');"
+                             onclick="setPattern('nanobanana-output/seamless_pixel_art_pattern_8bit__1.png')"></div>
+                        <p class="font-body text-center text-sm">Space</p>
+                    </div>
+
+                    <!-- Pattern 3 (Grass) -->
+                    <div class="space-y-2">
+                        <div class="pattern-preview" 
+                             style="background-image: url('nanobanana-output/seamless_pixel_art_pattern_retro.png');"
+                             onclick="setPattern('nanobanana-output/seamless_pixel_art_pattern_retro.png')"></div>
+                        <p class="font-body text-center text-sm">RPG Grass</p>
+                    </div>
+
+                    <!-- Pattern 4 (Tech) -->
+                    <div class="space-y-2">
+                        <div class="pattern-preview" 
+                             style="background-image: url('nanobanana-output/seamless_pixel_art_pattern_cyber.png');"
+                             onclick="setPattern('nanobanana-output/seamless_pixel_art_pattern_cyber.png')"></div>
+                        <p class="font-body text-center text-sm">Cyber Grid</p>
+                    </div>
+
+                    <!-- Pattern 5 (Dungeon) -->
+                    <div class="space-y-2">
+                        <div class="pattern-preview" 
+                             style="background-image: url('nanobanana-output/seamless_8bit_pixel_art_dungeon_.png');"
+                             onclick="setPattern('nanobanana-output/seamless_8bit_pixel_art_dungeon_.png')"></div>
+                        <p class="font-body text-center text-sm">Dungeon Stone</p>
+                    </div>
+
+                    <!-- Pattern 6 (Forest) -->
+                    <div class="space-y-2">
+                        <div class="pattern-preview" 
+                             style="background-image: url('nanobanana-output/seamless_8bit_pixel_art_forest_g.png');"
+                             onclick="setPattern('nanobanana-output/seamless_8bit_pixel_art_forest_g.png')"></div>
+                        <p class="font-body text-center text-sm">Forest Ground</p>
+                    </div>
+
+                    <!-- Pattern 7 (Water) -->
+                    <div class="space-y-2">
+                        <div class="pattern-preview" 
+                             style="background-image: url('nanobanana-output/seamless_8bit_pixel_art_water_pa.png');"
+                             onclick="setPattern('nanobanana-output/seamless_8bit_pixel_art_water_pa.png')"></div>
+                        <p class="font-body text-center text-sm">Adventure Water</p>
+                    </div>
+
+                    <!-- Pattern 8 (NES RPG) -->
+                    <div class="space-y-2">
+                        <div class="pattern-preview" 
+                             style="background-image: url('nanobanana-output/seamless_8bit_pixel_art_rpg_adve.png');"
+                             onclick="setPattern('nanobanana-output/seamless_8bit_pixel_art_rpg_adve.png')"></div>
+                        <p class="font-body text-center text-sm">NES RPG Map</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section: Buttons -->
+            <section class="pixel-card">
+                <h2 class="font-display text-xl mb-4 text-secondary">Buttons</h2>
+                <div class="flex flex-wrap gap-4">
+                    <button class="pixel-btn">Primary Action</button>
+                    <button class="pixel-btn bg-secondary text-white">Secondary Action</button>
+                    <button class="pixel-btn bg-danger text-white">Delete</button>
+                </div>
+            </section>
+
+            <!-- Section: Form Elements -->
+            <section class="pixel-card">
+                <h2 class="font-display text-xl mb-4 text-secondary">Inputs</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block font-display text-xs mb-2 text-text-meta">Text Input</label>
+                        <input type="text" class="w-full bg-background-dark border-2 border-border-light p-2 shadow-[inset_2px_2px_0px_0px_#1e1b4b] text-white focus:outline-none focus:border-primary font-body text-lg" placeholder="Type something...">
+                    </div>
+                    <div>
+                        <label class="block font-display text-xs mb-2 text-text-meta">Checkbox</label>
+                        <div class="flex items-center gap-2">
+                            <div class="w-6 h-6 border-2 border-border-light bg-background-dark shadow-[inset_2px_2px_0px_0px_#1e1b4b] flex items-center justify-center">
+                                <span class="material-symbols-outlined text-primary text-lg">check</span>
+                            </div>
+                            <span class="font-body text-lg">Pixel Checkbox</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Section: Typography -->
+            <section class="pixel-card">
+                 <h2 class="font-display text-xl mb-4 text-secondary">Typography</h2>
+                 <div class="space-y-2">
+                     <p class="font-display text-2xl">Header 1 (Display)</p>
+                     <p class="font-display text-xl">Header 2 (Display)</p>
+                     <p class="font-body text-xl">Body text looks like this. It uses the VT323 font which is great for readability in pixel art interfaces.</p>
+                     <p class="font-body text-lg text-text-meta">Meta text or captions usually look like this.</p>
+                 </div>
+            </section>
+
+        </main>
+    </div>
+
+    <script>
+        function setPattern(url) {
+            document.body.style.backgroundImage = `url('${url}')`;
+        }
+    </script>
+</body>
+</html>

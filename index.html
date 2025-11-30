@@ -12,6 +12,7 @@
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
     
     <!-- Additional Fonts -->
@@ -280,6 +281,11 @@
             background-image: radial-gradient(#4f46e5 1px, transparent 1px) !important;
             background-size: 20px 20px !important;
         }
+        body.bg-retro {
+            background-color: #fdf6e3 !important;
+            background-image: radial-gradient(#000 1px, transparent 1px) !important;
+            background-size: 20px 20px !important;
+        }
 
         /* Font Options */
         body.font-sans { font-family: ui-sans-serif, system-ui, sans-serif !important; }
@@ -302,6 +308,101 @@
         body.wrap-mode-break-all .pixel-textarea,
         body.wrap-mode-break-all .note-content-display {
             word-break: break-all !important; 
+        }
+
+        /* --- Theme: Pixel (8-bit) Overrides --- */
+        body.theme-pixel {
+            --font-pixel-body: "VT323", monospace;
+            /* REMOVED: font-family: var(--font-pixel-body) !important; to allow user selection */
+            /* REMOVED: font-size: 1.25rem; to prevent UI scaling issues */
+        }
+        
+        /* If no user font is selected (or default is selected), we want the pixel font. 
+           We can achieve this by setting the variable --font-display to VT323 in JS, 
+           or just relying on the fact that if they pick 'Pixel (Default)', it sets 'font-display'.
+           
+           Wait, 'font-display' class sets 'Press Start 2P'. 
+           If the user wants VT323 as the "Pixel Theme Default", we should probably update the 
+           'font-display' class behavior OR just let them pick.
+           
+           The issue reported is "ability to change font does not work".
+           So removing !important from body.theme-pixel is the key.
+        */
+
+        body.theme-pixel .pixel-button,
+        body.theme-pixel .pixel-button-secondary,
+        body.theme-pixel .pixel-button-surface,
+        body.theme-pixel .nav-button {
+            border-width: 4px !important;
+            border-color: #000 !important;
+            box-shadow: 4px 4px 0px 0px #000 !important;
+            border-radius: 0 !important;
+            text-transform: uppercase;
+        }
+        
+        body.theme-pixel .pixel-button:active,
+        body.theme-pixel .pixel-button-secondary:active,
+        body.theme-pixel .pixel-button-surface:active {
+            transform: translate(4px, 4px) !important;
+            box-shadow: none !important;
+        }
+
+        body.theme-pixel .pixel-input,
+        body.theme-pixel .pixel-textarea {
+            border: 4px solid #000 !important;
+            box-shadow: inset 4px 4px 0px 0px #e5e5e5 !important;
+            /* REMOVED: font-family: "VT323", monospace !important; */
+            /* REMOVED: font-size: 1.5rem !important; to fix dropdowns and layout */
+            background-color: #fff !important;
+            color: #000 !important;
+        }
+        
+        body.theme-pixel .pixel-input {
+            height: 3rem; /* 48px - Reduces from default 56px, but respects !h-10 overrides */
+        }
+        
+        /* Pixel Theme Icons */
+        body.theme-pixel .material-symbols-outlined[class*="ms-"] {
+            color: transparent !important;
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: contain;
+        }
+
+        body.theme-pixel .ms-settings { background-image: url('nanobanana-output/8bit_pixel_art_settings_gear_ico.png'); }
+        body.theme-pixel .ms-delete { background-image: url('nanobanana-output/8bit_pixel_art_trash_can_icon_wh.png'); }
+        body.theme-pixel .ms-edit { background-image: url('nanobanana-output/8bit_pixel_art_pencil_edit_icon_.png'); }
+        body.theme-pixel .ms-add { background-image: url('nanobanana-output/8bit_pixel_art_plus_sign_icon_wh.png'); }
+        body.theme-pixel .ms-search { background-image: url('nanobanana-output/8bit_pixel_art_magnifying_glass_.png'); }
+        body.theme-pixel .ms-folder { background-image: url('nanobanana-output/8bit_pixel_art_folder_icon_white.png'); }
+        body.theme-pixel .ms-create_new_folder { background-image: url('nanobanana-output/8bit_pixel_art_folder_icon_white.png'); }
+
+        /* Fix for select dropdown text cutoff in Pixel theme */
+        body.theme-pixel select.pixel-input {
+            padding-right: 2rem !important;
+            text-indent: 4px;
+        }
+        
+        body.theme-pixel .shadow-pixel-container {
+            box-shadow: 8px 8px 0px 0px #000 !important;
+            border: 4px solid #000 !important;
+        }
+        
+        body.theme-pixel .border-border-light,
+        body.theme-pixel .border-border-dark {
+             border-color: #000 !important;
+        }
+        
+        body.theme-pixel .tag-chip, 
+        body.theme-pixel .pixel-badge {
+            border: 2px solid #000 !important;
+            box-shadow: 2px 2px 0px 0px #000 !important;
+            font-family: "VT323", monospace !important;
+        }
+
+        /* Adjust icon sizes for the chunky pixel theme */
+        body.theme-pixel .material-symbols-outlined {
+            font-size: 1.5rem; 
         }
     </style>
 </head>
@@ -540,8 +641,16 @@
                     <h3 class="mb-4 text-xs uppercase text-primary font-bold">Appearance</h3>
                     
                     <div class="mb-3 flex items-center justify-between">
+                        <span class="text-xs text-text-light">Theme</span>
+                        <select id="setting-theme" class="pixel-input !h-10 !w-40 !text-xs">
+                            <option value="Standard">Standard</option>
+                            <option value="Pixel">Pixel</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3 flex items-center justify-between">
                         <span class="text-xs text-text-light">Font</span>
-                        <select id="setting-font" class="pixel-input !h-8 !w-40 !text-xs">
+                        <select id="setting-font" class="pixel-input !h-10 !w-40 !text-xs">
                             <option value="font-display">Pixel (Default)</option>
                             <option value="font-sans">System Sans</option>
                             <option value="font-serif">System Serif</option>
@@ -559,28 +668,42 @@
 
                     <div class="mb-3 flex items-center justify-between">
                         <span class="text-xs text-text-light">Background</span>
-                        <select id="setting-bg" class="pixel-input !h-8 !w-40 !text-xs">
+                        <select id="setting-bg" class="pixel-input !h-10 !w-40 !text-xs">
                             <option value="bg-default">Default (Deep Indigo)</option>
-                            <option value="bg-solid-black">Solid Black</option>
-                            <option value="bg-solid-gray">Solid Gray</option>
-                            <option value="bg-midnight">Midnight Blue</option>
-                            <option value="bg-forest">Dark Forest</option>
-                            <option value="bg-pattern-grid">Pixel Grid</option>
-                            <option value="bg-pattern-dots">Polka Dots</option>
+                            <optgroup label="Solid Colors">
+                                <option value="bg-solid-black">Solid Black</option>
+                                <option value="bg-solid-gray">Solid Gray</option>
+                                <option value="bg-midnight">Midnight Blue</option>
+                                <option value="bg-forest">Dark Forest</option>
+                            </optgroup>
+                            <optgroup label="Built-in Patterns">
+                                <option value="bg-pattern-grid">Pixel Grid</option>
+                                <option value="bg-pattern-dots">Polka Dots</option>
+                            </optgroup>
+                            <optgroup label="Pixel Art Patterns">
+                                <option value="bg-pixel-geometric">Geometric Shapes</option>
+                                <option value="bg-pixel-space">Starfield Space</option>
+                                <option value="bg-pixel-rpg-grass">RPG Grassland</option>
+                                <option value="bg-pixel-cyber-grid">Cyberpunk Grid</option>
+                                <option value="bg-pixel-dungeon">Dungeon Stone Wall</option>
+                                <option value="bg-pixel-forest-ground">Forest Ground</option>
+                                <option value="bg-pixel-adventure-water">Adventure Water</option>
+                                <option value="bg-pixel-nes-rpg-map">NES RPG Map</option>
+                            </optgroup>
                         </select>
                     </div>
 
                     <div class="mb-3 flex items-center justify-between">
                         <span class="text-xs text-text-light">Primary Color</span>
-                        <input type="color" id="setting-primary-color" value="#4ade80" class="pixel-input !h-8 !w-40 !p-1">
+                        <input type="color" id="setting-primary-color" value="#4ade80" class="pixel-input !h-10 !w-40 !p-1">
                     </div>
                     <div class="mb-3 flex items-center justify-between">
                         <span class="text-xs text-text-light">Secondary Color</span>
-                        <input type="color" id="setting-secondary-color" value="#a855f7" class="pixel-input !h-8 !w-40 !p-1">
+                        <input type="color" id="setting-secondary-color" value="#a855f7" class="pixel-input !h-10 !w-40 !p-1">
                     </div>
                     <div class="mb-3 flex items-center justify-between">
                         <span class="text-xs text-text-light">Text Color</span>
-                        <select id="setting-text-color" class="pixel-input !h-8 !w-40 !text-xs">
+                        <select id="setting-text-color" class="pixel-input !h-10 !w-40 !text-xs">
                             <option value="#f0fdf4">Default (Off-White)</option>
                             <option value="#ffffff">Pure White</option>
                             <option value="#d1d5db">Comfort Gray</option>
@@ -591,7 +714,7 @@
 
                     <div class="mb-3 flex items-center justify-between">
                         <span class="text-xs text-text-light">Line Spacing</span>
-                        <select id="setting-line-height" class="pixel-input !h-8 !w-40 !text-xs">
+                        <select id="setting-line-height" class="pixel-input !h-10 !w-40 !text-xs">
                             <option value="leading-normal">Normal</option>
                             <option value="leading-relaxed">Relaxed</option>
                             <option value="leading-loose">Loose</option>
@@ -600,7 +723,7 @@
 
                     <div class="mb-3 flex items-center justify-between">
                         <span class="text-xs text-text-light">Word Wrap</span>
-                        <select id="setting-word-wrap" class="pixel-input !h-8 !w-40 !text-xs">
+                        <select id="setting-word-wrap" class="pixel-input !h-10 !w-40 !text-xs">
                             <option value="true">Standard</option>
                             <option value="false">Break All</option>
                         </select>
@@ -668,8 +791,45 @@
         let currentTasksFolder = "root_tasks";
         let currentSearchQuery = ""; // State for search
         
+        // Theme Definitions
+        const themes = {
+            'Standard': {
+                font: 'font-display',
+                bg: 'bg-default',
+                primaryColor: '#4ade80',
+                secondaryColor: '#a855f7',
+                textColor: '#f0fdf4',
+                lineHeight: 'leading-normal',
+                compact: false,
+                wordWrap: true
+            },
+            'Pixel': {
+                font: 'font-display',
+                bg: 'bg-pixel-nes-rpg-map',
+                primaryColor: '#81a1c1',
+                secondaryColor: '#bf616a',
+                textColor: '#2e3440',
+                lineHeight: 'leading-relaxed',
+                compact: false,
+                wordWrap: true
+            }
+        };
+        
+        // Define pixel background image URLs
+        const pixelBackgrounds = {
+            'bg-pixel-geometric': 'nanobanana-output/seamless_pixel_art_pattern_8bit_.png',
+            'bg-pixel-space': 'nanobanana-output/seamless_pixel_art_pattern_8bit__1.png',
+            'bg-pixel-rpg-grass': 'nanobanana-output/seamless_pixel_art_pattern_retro.png',
+            'bg-pixel-cyber-grid': 'nanobanana-output/seamless_pixel_art_pattern_cyber.png',
+            'bg-pixel-dungeon': 'nanobanana-output/seamless_8bit_pixel_art_dungeon_.png',
+            'bg-pixel-forest-ground': 'nanobanana-output/seamless_8bit_pixel_art_forest_g.png',
+            'bg-pixel-adventure-water': 'nanobanana-output/seamless_8bit_pixel_art_water_pa.png',
+            'bg-pixel-nes-rpg-map': 'nanobanana-output/seamless_8bit_pixel_art_rpg_adve.png'
+        };
+
         // Settings State
         let settings = {
+            currentTheme: 'Standard', // Default theme
             font: 'font-display',
             bg: 'bg-default',
             primaryColor: '#4ade80', // Default green
@@ -2830,6 +2990,13 @@
         }
 
         function applySettings() {
+            // Theme Class Toggle
+            if (settings.currentTheme === 'Pixel') {
+                document.body.classList.add('theme-pixel');
+            } else {
+                document.body.classList.remove('theme-pixel');
+            }
+
             // Font
             const fontClasses = ['font-display', 'font-sans', 'font-serif', 'font-mono', 'font-Inter', 'font-Roboto', 'font-Open-Sans', 'font-Lato', 'font-Montserrat', 'font-Merriweather'];
             document.body.classList.remove(...fontClasses);
@@ -2841,9 +3008,31 @@
             document.body.classList.add(fontClass);
 
             // Background
-            const bgClasses = ['bg-solid-black', 'bg-solid-gray', 'bg-midnight', 'bg-forest', 'bg-pattern-grid', 'bg-pattern-dots'];
-            document.body.classList.remove(...bgClasses);
-            if (settings.bg !== 'bg-default') {
+            const bgClasses = [
+                'bg-solid-black', 'bg-solid-gray', 'bg-midnight', 'bg-forest',
+                'bg-pattern-grid', 'bg-pattern-dots', 'bg-retro',
+                'bg-pixel-geometric', 'bg-pixel-space', 'bg-pixel-rpg-grass', 'bg-pixel-cyber-grid',
+                'bg-pixel-dungeon', 'bg-pixel-forest-ground', 'bg-pixel-adventure-water', 'bg-pixel-nes-rpg-map'
+            ];
+            document.body.classList.remove(...bgClasses); // Remove all potential background classes
+            document.body.style.backgroundImage = ''; // Clear any direct image styles
+            document.body.style.backgroundColor = ''; // Clear any direct color styles
+            document.body.style.backgroundRepeat = '';
+            document.body.style.backgroundSize = '';
+            document.body.style.imageRendering = '';
+
+            if (settings.bg === 'bg-default') {
+                // Revert to default CSS background from <style> block
+                document.body.style.backgroundImage = 
+                    `linear-gradient(rgba(30, 27, 75, 0.8), rgba(30, 27, 75, 0.8)), url("data:image/svg+xml,%3Csvg width='6' height='6' viewBox='0 0 6 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23312e81' fill-opacity='0.4' fill-rule='evenodd'%3E%3Cpath d='M5 0h1L0 6V5zM6 5v1H5z'/%3E%3C/g%3E%3C/svg%3E")`;
+                document.body.style.backgroundRepeat = 'repeat';
+                document.body.style.backgroundSize = ''; // Let CSS handle this
+            } else if (pixelBackgrounds[settings.bg]) {
+                document.body.style.backgroundImage = `url('${pixelBackgrounds[settings.bg]}')`;
+                document.body.style.backgroundRepeat = 'repeat';
+                document.body.style.backgroundSize = '128px'; // Consistent size for pixel art patterns
+                document.body.style.imageRendering = 'pixelated'; // Essential for pixel art
+            } else if (settings.bg) { // Fallback for other class-based backgrounds
                 document.body.classList.add(settings.bg);
             }
 
@@ -2884,6 +3073,7 @@
         }
 
         function initSettingsUI() {
+            document.getElementById('setting-theme').value = settings.currentTheme || 'Standard';
             document.getElementById('setting-primary-color').value = settings.primaryColor;
             document.getElementById('setting-secondary-color').value = settings.secondaryColor;
             document.getElementById('setting-text-color').value = settings.textColor;
@@ -2898,6 +3088,38 @@
             document.getElementById('setting-word-wrap').value = settings.wordWrap.toString();
         }
 
+        // --- Icon Auto-Classification ---
+        function classifyIcon(icon) {
+            const name = icon.textContent.trim();
+            if (name && !icon.classList.contains(`ms-${name}`)) {
+                icon.classList.add(`ms-${name}`);
+            }
+        }
+
+        function autoClassifyIcons() {
+            document.querySelectorAll('.material-symbols-outlined').forEach(classifyIcon);
+        }
+
+        const iconObserver = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                mutation.addedNodes.forEach(node => {
+                    if (node.nodeType === 1) { // Element
+                        if (node.classList && node.classList.contains('material-symbols-outlined')) {
+                            classifyIcon(node);
+                        }
+                        // Also check children
+                        node.querySelectorAll('.material-symbols-outlined').forEach(classifyIcon);
+                    }
+                });
+            });
+        });
+        
+        // Start observing
+        iconObserver.observe(document.body, { childList: true, subtree: true });
+        
+        // Initial run
+        autoClassifyIcons();
+
         // --- App Initialization ---
         async function main() {
             await initDB();
@@ -2911,8 +3133,31 @@
             });
 
             // Settings Listeners
+            document.getElementById('setting-theme').addEventListener('change', (e) => {
+                const themeName = e.target.value;
+                settings.currentTheme = themeName;
+                
+                if (themes[themeName]) {
+                    const theme = themes[themeName];
+                    settings.font = theme.font;
+                    settings.bg = theme.bg;
+                    settings.primaryColor = theme.primaryColor;
+                    settings.secondaryColor = theme.secondaryColor;
+                    settings.textColor = theme.textColor;
+                    settings.lineHeight = theme.lineHeight;
+                    settings.compact = theme.compact;
+                    settings.wordWrap = theme.wordWrap;
+                    
+                    // Refresh UI to show new values
+                    initSettingsUI();
+                }
+                
+                saveSettings();
+            });
+
             document.getElementById('setting-primary-color').addEventListener('input', (e) => {
                 settings.primaryColor = e.target.value;
+                // Customizing breaks the "theme" link effectively, but we keep the name for now
                 saveSettings();
             });
             document.getElementById('setting-secondary-color').addEventListener('input', (e) => {
