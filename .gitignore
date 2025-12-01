@@ -80,6 +80,7 @@ NoteAppPWAref.md
 # Firebase Hosting config
 firebase.json
 
+<<<<<<< HEAD
 # Python
 __pycache__/
 *.py[cod]
@@ -90,3 +91,8 @@ __pycache__/
 .well-known/assetlinks.json
 PWABuilderAndroid.pdf
 myNotes.json
+=======
+# Gemini CLI files
+.gemini/
+setup_gemini_conf.sh
+>>>>>>> 2eda212 (chore: replit configuration updates)
