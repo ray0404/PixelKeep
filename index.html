@@ -443,6 +443,20 @@
         </div>
     </div>
 
+    <div id="alarm-modal" class="fixed inset-0 z-50 flex hidden items-center justify-center bg-black/90">
+        <div class="flex flex-col items-center gap-4 rounded border-4 border-danger bg-surface p-6 shadow-[8px_8px_0px_0px_#ef4444] w-11/12 max-w-sm animate-pulse-fast">
+            <span class="material-symbols-outlined text-6xl text-danger">notifications_active</span>
+            <h2 id="alarm-title" class="text-lg font-bold uppercase text-text-light text-shadow-pixel text-center">Reminder</h2>
+            <p id="alarm-message" class="text-xs text-text-meta text-center">Task is due!</p>
+            
+            <div class="flex gap-2 w-full mt-4">
+                <button id="alarm-snooze-btn" class="pixel-button-secondary h-14 flex-1 text-sm uppercase">Snooze (5m)</button>
+                <button id="alarm-dismiss-btn" class="pixel-button h-14 flex-1 bg-danger text-sm uppercase">Dismiss</button>
+            </div>
+            <button id="alarm-stop-audio-btn" class="hidden text-[10px] text-text-meta hover:text-text-light underline uppercase">Stop Audio</button>
+        </div>
+    </div>
+
     <div id="app-container" class="relative flex min-h-screen w-full flex-col" style="display: none;">
 
         <div id="sidebar-overlay" class="fixed inset-0 z-40 hidden bg-black/50 backdrop-blur-sm transition-opacity"></div>
@@ -614,6 +628,21 @@
                     </label>
 
                     <label class="flex flex-col w-full">
+                        <p class="text-xs font-medium uppercase leading-normal pb-2 text-primary">Completion Type</p>
+                        <select id="task-edit-completion-type" class="pixel-input !h-10 !text-xs">
+                            <option value="at">At Time (Standard)</option>
+                            <option value="before_by">Before/By Time</option>
+                        </select>
+                    </label>
+
+                    <label id="task-edit-start-time-container" class="flex flex-col w-full hidden">
+                        <p class="text-xs font-medium uppercase leading-normal pb-2 text-primary">Start Time</p>
+                        <div class="flex w-full flex-1 items-stretch">
+                            <input id="task-edit-start-time" type="datetime-local" class="pixel-input [color-scheme:dark]" placeholder="Select start date & time" value=""/>
+                        </div>
+                    </label>
+
+                    <label class="flex flex-col w-full">
                         <p class="text-xs font-medium uppercase leading-normal pb-2 text-primary">Location</p>
                         <input id="task-edit-location" class="pixel-input" placeholder="Add a location" value=""/>
                     </label>
@@ -622,6 +651,49 @@
                         <p class="text-xs font-medium uppercase leading-normal pb-2 text-primary">People</p>
                         <input id="task-edit-people" class="pixel-input" placeholder="Add people" value=""/>
                     </label>
+
+                    <div class="border-2 border-border-light bg-surface p-2 shadow-pixel-btn mt-2 mb-2">
+                        <label class="flex items-center gap-2 cursor-pointer pb-2">
+                             <input type="checkbox" id="task-edit-alarm-enabled" class="pixel-checkbox">
+                             <span class="text-xs font-medium uppercase text-primary">Enable Reminder / Alarm</span>
+                        </label>
+                        
+                        <div id="task-edit-alarm-options" class="hidden flex flex-col gap-2 pl-2 border-l-2 border-border-light">
+                             <label class="flex flex-col">
+                                <span class="text-[10px] uppercase text-text-light">Trigger</span>
+                                <select id="task-edit-alarm-trigger" class="pixel-input !h-8 !text-xs">
+                                    <option value="0">At Task Time</option>
+                                    <option value="5">5 minutes before</option>
+                                    <option value="10">10 minutes before</option>
+                                    <option value="15">15 minutes before</option>
+                                    <option value="30">30 minutes before</option>
+                                    <option value="60">1 hour before</option>
+                                </select>
+                             </label>
+
+                             <label class="flex flex-col">
+                                <span class="text-[10px] uppercase text-text-light">Repeat</span>
+                                <select id="task-edit-alarm-repeat" class="pixel-input !h-8 !text-xs">
+                                    <option value="0">No Repeat</option>
+                                    <option value="5">Every 5 min</option>
+                                    <option value="10">Every 10 min</option>
+                                    <option value="15">Every 15 min</option>
+                                    <option value="30">Every 30 min</option>
+                                    <option value="60">Every 1 hour</option>
+                                </select>
+                             </label>
+                             
+                             <label class="flex flex-col">
+                                <span class="text-[10px] uppercase text-text-light">Sound</span>
+                                <div class="flex gap-2">
+                                     <button type="button" id="task-alarm-audio-btn" class="pixel-button-surface text-xs px-2 py-1 w-full">Upload Audio</button>
+                                     <button type="button" id="task-alarm-audio-clear" class="pixel-button-surface text-xs px-2 py-1 bg-danger hidden">X</button>
+                                </div>
+                                <input type="file" id="task-alarm-audio-input" class="hidden" accept="audio/*">
+                                <span id="task-alarm-audio-name" class="text-[10px] text-primary mt-1 truncate">Default</span>
+                             </label>
+                        </div>
+                    </div>
 
                     <label class="flex flex-col w-full">
                         <p class="text-xs font-medium uppercase leading-normal pb-2 text-primary">Notes</p>
@@ -902,6 +974,29 @@
         const taskEditNotes = document.getElementById('task-edit-notes');
         const taskEditCancel = document.getElementById('task-edit-cancel');
         const taskEditDelete = document.getElementById('task-edit-delete');
+        const taskEditCompletionType = document.getElementById('task-edit-completion-type');
+        const taskEditStartTime = document.getElementById('task-edit-start-time');
+        const taskEditStartTimeContainer = document.getElementById('task-edit-start-time-container');
+        
+        const taskEditAlarmEnabled = document.getElementById('task-edit-alarm-enabled');
+        const taskEditAlarmOptions = document.getElementById('task-edit-alarm-options');
+        const taskEditAlarmTrigger = document.getElementById('task-edit-alarm-trigger');
+        const taskEditAlarmRepeat = document.getElementById('task-edit-alarm-repeat');
+        const taskAlarmAudioBtn = document.getElementById('task-alarm-audio-btn');
+        const taskAlarmAudioClear = document.getElementById('task-alarm-audio-clear');
+        const taskAlarmAudioInput = document.getElementById('task-alarm-audio-input');
+        const taskAlarmAudioName = document.getElementById('task-alarm-audio-name');
+        
+        let currentTaskAlarmAudio = null;
+
+        const alarmModal = document.getElementById('alarm-modal');
+        const alarmTitle = document.getElementById('alarm-title');
+        const alarmMessage = document.getElementById('alarm-message');
+        const alarmSnoozeBtn = document.getElementById('alarm-snooze-btn');
+        const alarmDismissBtn = document.getElementById('alarm-dismiss-btn');
+        const alarmStopAudioBtn = document.getElementById('alarm-stop-audio-btn');
+        let currentAlarmTask = null;
+        let currentAlarmAudio = null;
 
         // --- Encryption ---
         function encrypt(data, key) {
@@ -1016,8 +1111,13 @@
             appContainer.style.display = 'flex';
             setupEventListeners();
             setupDragAndDrop();
-            setupAudioListeners(); // Initialize Audio
+            setupAudioListeners(); 
             router();
+            
+            if ("Notification" in window) {
+                Notification.requestPermission();
+            }
+            setInterval(checkAlarms, 30000);
         }
 
         function registerServiceWorker() {
@@ -1155,6 +1255,102 @@
                 currentAudioBase64 = null;
                 updateAudioUI(null);
             }
+        }
+
+        async function checkAlarms() {
+            if (!isAuthenticated) return;
+            
+            const now = new Date();
+            const encryptedTasks = await db.getAll('tasks');
+            
+            for (const enc of encryptedTasks) {
+                const task = decrypt(enc.data, password);
+                
+                if (task && !task.completed && task.alarm && task.alarm.enabled && task.nextAlarmTime) {
+                    const alarmTime = new Date(task.nextAlarmTime);
+                    
+                    if (alarmTime <= now) {
+                        // Trigger Alarm
+                        await triggerAlarm(task);
+                        
+                        // Calculate next occurrence
+                        if (task.alarm.repeat > 0) {
+                            const nextTime = new Date(now.getTime() + (task.alarm.repeat * 60000)).toISOString();
+                            task.nextAlarmTime = nextTime;
+                        } else {
+                            task.nextAlarmTime = null;
+                        }
+                        
+                        const newEnc = encrypt(task, password);
+                        await db.put('tasks', { id: task.id, data: newEnc });
+                    }
+                }
+            }
+        }
+        
+        async function triggerAlarm(task) {
+            if (currentAlarmAudio) {
+                currentAlarmAudio.pause();
+                currentAlarmAudio = null;
+            }
+
+            let audioSrc = null;
+            if (task.alarm.audio && task.alarm.audio.data) {
+                audioSrc = task.alarm.audio.data;
+            }
+            
+            if (audioSrc) {
+                currentAlarmAudio = new Audio(audioSrc);
+                currentAlarmAudio.loop = true;
+                try {
+                   await currentAlarmAudio.play();
+                   alarmStopAudioBtn.classList.remove('hidden');
+                } catch(e) {
+                    console.log("Audio play blocked", e);
+                }
+            } else {
+                alarmStopAudioBtn.classList.add('hidden');
+            }
+
+            if (Notification.permission === "granted") {
+                 new Notification(`PixelKeep Reminder: ${task.title}`, {
+                     body: task.time ? `Due: ${new Date(task.time).toLocaleTimeString()}` : "Reminder",
+                     icon: 'icons/icon-192.png'
+                 });
+            }
+            
+            showAlarmModal(task);
+        }
+
+        function showAlarmModal(task) {
+            currentAlarmTask = task;
+            alarmTitle.textContent = "Reminder";
+            alarmMessage.textContent = task.title;
+            alarmModal.classList.remove('hidden');
+        }
+
+        async function closeAlarmModal(action) {
+            if (currentAlarmAudio) {
+                currentAlarmAudio.pause();
+                currentAlarmAudio = null;
+            }
+            
+            if (action === 'snooze' && currentAlarmTask) {
+                // Snooze for 5 minutes
+                const now = new Date();
+                const snoozedTime = new Date(now.getTime() + 5 * 60000).toISOString();
+                
+                const encryptedTask = await db.get('tasks', Number(currentAlarmTask.id));
+                if (encryptedTask) {
+                    const task = decrypt(encryptedTask.data, password);
+                    task.nextAlarmTime = snoozedTime;
+                    const newEnc = encrypt(task, password);
+                    await db.put('tasks', { id: task.id, data: newEnc });
+                }
+            }
+            
+            alarmModal.classList.add('hidden');
+            currentAlarmTask = null;
         }
 
         // --- Router ---
@@ -1800,6 +1996,19 @@
                 const timeStr = task.time ? new Date(task.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
                 const dateStr = task.time ? new Date(task.time).toLocaleDateString() : ''; 
                 
+                let scheduleDisplay = timeStr;
+                if (task.completionType === 'before_by' && task.startTime) {
+                    const startObj = new Date(task.startTime);
+                    const startStr = startObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    const startDateStr = startObj.toLocaleDateString();
+                    
+                    if (task.time && startDateStr !== dateStr) {
+                         scheduleDisplay = `${startDateStr} ${startStr} - ${dateStr} ${timeStr}`;
+                    } else {
+                         scheduleDisplay = `${startStr} - ${timeStr}`;
+                    }
+                }
+
                 taskEl.innerHTML = `
                     <div class="flex items-start justify-between w-full">
                         <div class="flex pt-1">
@@ -1809,7 +2018,7 @@
                             <p class="text-xs font-bold leading-normal ${completed ? 'text-text-light/70 line-through' : 'text-primary'}">${task.title}</p>
                             <div class="mt-1 space-y-1 text-[10px] text-text-meta">
                                 ${dateStr ? `<div class="flex items-center gap-2"><span class="material-symbols-outlined text-base">event</span><p>${dateStr}</p></div>` : ''}
-                                ${timeStr ? `<div class="flex items-center gap-2"><span class="material-symbols-outlined text-base">schedule</span><p>${timeStr}</p></div>` : ''}
+                                ${scheduleDisplay ? `<div class="flex items-center gap-2"><span class="material-symbols-outlined text-base">schedule</span><p>${scheduleDisplay}</p></div>` : ''}
                                 ${task.location ? `<div class="flex items-center gap-2"><span class="material-symbols-outlined text-base">location_on</span><p>${task.location}</p></div>` : ''}
                                 ${task.people ? `<div class="flex items-center gap-2"><span class="material-symbols-outlined text-base">group</span><p>${task.people}</p></div>` : ''}
                             </div>
@@ -1838,6 +2047,26 @@
                     taskEditId.value = task.id;
                     taskEditTitle.value = task.title;
                     taskEditTime.value = task.time ? new Date(new Date(task.time).getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0, 16) : '';
+                    
+                    taskEditCompletionType.value = task.completionType || 'at';
+                    taskEditStartTime.value = task.startTime ? new Date(new Date(task.startTime).getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0, 16) : '';
+                    toggleStartTimeVisibility();
+
+                    // Alarm Data
+                    if (task.alarm) {
+                        taskEditAlarmEnabled.checked = task.alarm.enabled;
+                        taskEditAlarmTrigger.value = task.alarm.trigger || 0;
+                        taskEditAlarmRepeat.value = task.alarm.repeat || 0;
+                        currentTaskAlarmAudio = task.alarm.audio || null;
+                    } else {
+                        taskEditAlarmEnabled.checked = false;
+                        taskEditAlarmTrigger.value = 0;
+                        taskEditAlarmRepeat.value = 0;
+                        currentTaskAlarmAudio = null;
+                    }
+                    toggleAlarmOptions();
+                    updateTaskAlarmAudioUI();
+
                     taskEditLocation.value = task.location || '';
                     taskEditPeople.value = task.people || '';
                     taskEditNotes.value = task.notes || '';
@@ -1846,6 +2075,17 @@
             } else {
                 taskEditForm.reset();
                 taskEditId.value = '';
+                taskEditCompletionType.value = 'at';
+                taskEditStartTime.value = '';
+                toggleStartTimeVisibility();
+                
+                taskEditAlarmEnabled.checked = false;
+                taskEditAlarmTrigger.value = 0;
+                taskEditAlarmRepeat.value = 0;
+                currentTaskAlarmAudio = null;
+                toggleAlarmOptions();
+                updateTaskAlarmAudioUI();
+
                 taskEditDelete.classList.add('hidden');
             }
         }
@@ -1864,13 +2104,33 @@
                 }
             }
 
+            const alarmEnabled = taskEditAlarmEnabled.checked;
+            const triggerMinutes = parseInt(taskEditAlarmTrigger.value);
+            const taskTimeVal = taskEditTime.value ? new Date(taskEditTime.value) : null;
+            let nextAlarm = null;
+            
+            if (alarmEnabled && taskTimeVal) {
+                 nextAlarm = new Date(taskTimeVal.getTime() - (triggerMinutes * 60000)).toISOString();
+            }
+
             const task = {
                 id: id,
                 title: taskEditTitle.value,
                 time: taskEditTime.value ? new Date(taskEditTime.value).toISOString() : null,
+                completionType: taskEditCompletionType.value,
+                startTime: (taskEditCompletionType.value === 'before_by' && taskEditStartTime.value) 
+                           ? new Date(taskEditStartTime.value).toISOString() 
+                           : (taskEditCompletionType.value === 'before_by' ? new Date().toISOString() : null),
                 location: taskEditLocation.value,
                 people: taskEditPeople.value,
                 notes: taskEditNotes.value,
+                alarm: {
+                    enabled: alarmEnabled,
+                    trigger: triggerMinutes,
+                    repeat: parseInt(taskEditAlarmRepeat.value),
+                    audio: currentTaskAlarmAudio
+                },
+                nextAlarmTime: nextAlarm,
                 completed: completedStatus,
                 updatedAt: new Date().toISOString()
             };
@@ -2480,6 +2740,53 @@
             }
         }
 
+        function toggleStartTimeVisibility() {
+            if (taskEditCompletionType.value === 'before_by') {
+                taskEditStartTimeContainer.classList.remove('hidden');
+            } else {
+                taskEditStartTimeContainer.classList.add('hidden');
+            }
+        }
+
+        function toggleAlarmOptions() {
+            if (taskEditAlarmEnabled.checked) {
+                taskEditAlarmOptions.classList.remove('hidden');
+            } else {
+                taskEditAlarmOptions.classList.add('hidden');
+            }
+        }
+
+        function handleTaskAlarmAudioUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                alert("Audio file too large (Max 5MB).");
+                e.target.value = '';
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                currentTaskAlarmAudio = {
+                    name: file.name,
+                    data: event.target.result
+                };
+                updateTaskAlarmAudioUI();
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        function updateTaskAlarmAudioUI() {
+            if (currentTaskAlarmAudio) {
+                taskAlarmAudioName.textContent = currentTaskAlarmAudio.name;
+                taskAlarmAudioClear.classList.remove('hidden');
+                taskAlarmAudioBtn.textContent = "Change Audio";
+            } else {
+                taskAlarmAudioName.textContent = "Default";
+                taskAlarmAudioClear.classList.add('hidden');
+                taskAlarmAudioBtn.textContent = "Upload Audio";
+            }
+        }
+
         function setupEventListeners() {
             // Sidebar Listeners
             document.getElementById('header-icon').parentElement.addEventListener('click', (e) => {
@@ -2563,6 +2870,16 @@
                     await deleteTask(nodeId);
                     location.hash = `#page-todos-list/${currentTasksFolder}`;
                 }
+            });
+            
+            taskEditCompletionType.addEventListener('change', toggleStartTimeVisibility);
+            
+            taskEditAlarmEnabled.addEventListener('change', toggleAlarmOptions);
+            taskAlarmAudioBtn.addEventListener('click', () => taskAlarmAudioInput.click());
+            taskAlarmAudioInput.addEventListener('change', handleTaskAlarmAudioUpload);
+            taskAlarmAudioClear.addEventListener('click', () => {
+                currentTaskAlarmAudio = null;
+                updateTaskAlarmAudioUI();
             });
             document.getElementById('format-bold').addEventListener('click', () => formatText('bold'));
             document.getElementById('format-italic').addEventListener('click', () => formatText('italic'));
@@ -2698,6 +3015,16 @@
             notesListContainer.addEventListener('change', (e) => {
                 if (e.target.classList.contains('note-select-checkbox') || e.target.classList.contains('folder-select-checkbox')) {
                     updateUI(location.hash || '#page-notes-list');
+                }
+            });
+            
+            alarmSnoozeBtn.addEventListener('click', () => closeAlarmModal('snooze'));
+            alarmDismissBtn.addEventListener('click', () => closeAlarmModal('dismiss'));
+            alarmStopAudioBtn.addEventListener('click', () => {
+                if (currentAlarmAudio) {
+                    currentAlarmAudio.pause();
+                    currentAlarmAudio = null;
+                    alarmStopAudioBtn.classList.add('hidden');
                 }
             });
         }
