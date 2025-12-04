@@ -233,6 +233,16 @@
         .drag-over {
             border-top: 2px dashed #4ade80;
         }
+        .drag-over-top {
+            border-top: 2px dashed var(--color-primary);
+        }
+        .drag-over-bottom {
+            border-bottom: 2px dashed var(--color-primary);
+        }
+        .drag-over-inside {
+            background-color: rgba(74, 222, 128, 0.2);
+            border: 2px dashed var(--color-primary);
+        }
         .no-pointer-events * {
             pointer-events: none;
         }
@@ -400,6 +410,27 @@
             font-family: "VT323", monospace !important;
         }
 
+        /* Sidebar Selection & Drag */
+        .sidebar-checkbox {
+            @apply hidden size-4 rounded border-2 border-border-light bg-surface mr-2 cursor-pointer checked:bg-primary checked:border-primary appearance-none;
+        }
+        .sidebar-selection-mode .sidebar-checkbox {
+            @apply block;
+        }
+        .directory-item-selected {
+            @apply bg-primary/20 !important;
+        }
+        .directory-item-dragging {
+            @apply opacity-50 bg-primary/10 border-2 border-dashed border-primary !important;
+        }
+        /* Sidebar Options Menu */
+        #sidebar-options-menu {
+            @apply absolute bottom-0 left-0 w-full bg-surface border-t-4 border-border-dark p-2 shadow-pixel-container z-50 flex flex-col gap-2 transition-transform duration-300 transform translate-y-full;
+        }
+        #sidebar-options-menu.open {
+            @apply translate-y-0;
+        }
+
         /* Adjust icon sizes for the chunky pixel theme */
         body.theme-pixel .material-symbols-outlined {
             font-size: 1.5rem; 
@@ -471,6 +502,17 @@
                 </div>
                 <div id="directory-tree-container" class="flex-1 overflow-y-auto p-4 space-y-2">
                     <!-- Tree content injected here -->
+                </div>
+                
+                <!-- Sidebar Options Menu -->
+                <div id="sidebar-options-menu">
+                    <div class="flex justify-between items-center mb-2">
+                        <span id="sidebar-selection-count" class="text-xs text-primary font-bold">0 Selected</span>
+                        <button id="sidebar-cancel-selection" class="text-xs text-danger uppercase hover:underline">Cancel</button>
+                    </div>
+                    <button id="sidebar-move-btn" class="pixel-button-surface h-10 w-full text-xs uppercase gap-2">
+                        <span class="material-symbols-outlined text-base">drive_file_move</span> Move
+                    </button>
                 </div>
             </div>
         </aside>
@@ -862,6 +904,12 @@
         let currentNotesFolder = "root_notes";
         let currentTasksFolder = "root_tasks";
         let currentSearchQuery = ""; // State for search
+        
+        // Sidebar State
+        let sidebarSelectionMode = false;
+        let sidebarSelectedIds = new Set();
+        let sidebarDragItem = null;
+        let sidebarLongPressTimer = null;
         
         // Theme Definitions
         const themes = {
@@ -2399,13 +2447,14 @@
                 // Autoscroll logic
                 if (!autoScrollFrame) {
                     const scrollLoop = () => {
-                        const scrollThreshold = 80; 
+                        const scrollThreshold = 100; // Increased threshold for better mobile detection
                         const scrollSpeed = 15; 
+                        const viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
                         
                         if (dragClientY < scrollThreshold) {
                             window.scrollBy(0, -scrollSpeed);
                             autoScrollFrame = requestAnimationFrame(scrollLoop);
-                        } else if (dragClientY > window.innerHeight - scrollThreshold) {
+                        } else if (dragClientY > viewportHeight - scrollThreshold) {
                             window.scrollBy(0, scrollSpeed);
                             autoScrollFrame = requestAnimationFrame(scrollLoop);
                         } else {
@@ -2423,24 +2472,58 @@
                 const folderTarget = e.target.closest('[data-type="folder"]');
                 const container = e.currentTarget;
 
-                if (folderTarget && folderTarget !== draggedItem) {
-                    const nodeId = draggedItem.dataset.id;
-                    const targetFolderId = folderTarget.dataset.id;
+                // Identify items to move
+                // Check for checkboxes in the current container
+                const checkboxes = container.querySelectorAll('.note-select-checkbox:checked, .folder-select-checkbox:checked');
+                let itemsToMove = [];
 
-                    const encryptedNode = await db.get('fs_nodes', nodeId);
-                    if (encryptedNode) {
-                        const node = decrypt(encryptedNode.data, password);
-                        node.parentId = targetFolderId;
-                        const encryptedData = encrypt(node, password);
-                        await db.put('fs_nodes', { id: nodeId, data: encryptedData });
-                        draggedItem.remove();
+                if (checkboxes.length > 0) {
+                    // If selection exists, verify if dragged item is part of it
+                    const isDraggedSelected = Array.from(checkboxes).some(cb => cb.closest('[draggable="true"]') === draggedItem);
+                    
+                    if (isDraggedSelected) {
+                        // If dragging a selected item, move ALL selected items
+                        itemsToMove = Array.from(checkboxes).map(cb => cb.closest('[draggable="true"]')).filter(el => el);
+                    } else {
+                        // If dragging an unselected item, only move that one (standard UI behavior)
+                        itemsToMove = [draggedItem];
                     }
                 } else {
+                    itemsToMove = [draggedItem];
+                }
+
+                // Ensure unique items and no nulls
+                itemsToMove = [...new Set(itemsToMove)];
+
+                if (folderTarget) {
+                     // Moving TO a folder
+                    const targetFolderId = folderTarget.dataset.id;
+                    
+                    // Avoid moving folder into itself
+                    itemsToMove = itemsToMove.filter(item => item !== folderTarget);
+
+                    for (const item of itemsToMove) {
+                        const nodeId = item.dataset.id;
+                        const encryptedNode = await db.get('fs_nodes', nodeId);
+                        if (encryptedNode) {
+                            const node = decrypt(encryptedNode.data, password);
+                            node.parentId = targetFolderId;
+                            const encryptedData = encrypt(node, password);
+                            await db.put('fs_nodes', { id: nodeId, data: encryptedData });
+                            item.remove();
+                        }
+                    }
+                } else {
+                    // Reordering in list
                     const afterElement = getDragAfterElement(container, e.clientY);
-                    if (afterElement) {
-                        container.insertBefore(draggedItem, afterElement);
-                    } else {
-                        container.appendChild(draggedItem);
+                    
+                    // Move elements in DOM
+                    for (const item of itemsToMove) {
+                        if (afterElement) {
+                            container.insertBefore(item, afterElement);
+                        } else {
+                            container.appendChild(item);
+                        }
                     }
                 }
                 handleDragEnd();
@@ -2516,9 +2599,25 @@
             sidebarOverlay.classList.add('hidden');
         }
 
+        function updateSidebarSelectionCount() {
+            const el = document.getElementById('sidebar-selection-count');
+            if (el) {
+                el.textContent = `${sidebarSelectedIds.size} Selected`;
+            }
+        }
+
         async function renderDirectoryTree() {
             try {
                 directoryTreeContainer.innerHTML = '<div class="text-xs text-text-meta">Loading...</div>';
+                
+                if (sidebarSelectionMode) {
+                    directoryTreeContainer.classList.add('sidebar-selection-mode');
+                    document.getElementById('sidebar-options-menu').classList.add('open');
+                    updateSidebarSelectionCount();
+                } else {
+                    directoryTreeContainer.classList.remove('sidebar-selection-mode');
+                    document.getElementById('sidebar-options-menu').classList.remove('open');
+                }
                 
                 // Determine Context based on visibility or hash
                 const isTasks = !document.getElementById('page-todos-list').classList.contains('hidden') || 
@@ -2550,10 +2649,6 @@
                     const item = node.type === 'folder' ? folderMap[node.id] : node;
                     
                     // Filter based on context (Notes vs Tasks)
-                    // We only want items that belong to our current root hierarchy
-                    
-                    // Helper to check if a node belongs to current root (basic check)
-                    // For deeper validation we might need to traverse up, but assuming parentId validity:
                     const isItemForContext = (node.type === 'folder' || node.type === targetType);
                     
                     if (!isItemForContext) return;
@@ -2568,11 +2663,7 @@
                 const sortNodes = (nodes) => {
                     if (!nodes) return [];
                     return nodes.sort((a, b) => {
-                        // Folders first, then items
-                        if (a.type !== b.type) {
-                            return a.type === 'folder' ? -1 : 1;
-                        }
-                        return (a.name || '').localeCompare(b.name || '');
+                        return (a.order || 0) - (b.order || 0); // Sort by order
                     });
                 };
 
@@ -2583,13 +2674,18 @@
                     for (const node of sorted) {
                         const padding = level * 12;
                         const isExpanded = expandedFolders.has(node.id);
+                        const isSelected = sidebarSelectedIds.has(node.id);
+                        const selectedClass = isSelected ? 'directory-item-selected' : '';
+                        const checkedAttr = isSelected ? 'checked' : '';
                         
                         if (node.type === 'folder') {
                             html += `
-                                <div class="mb-1 select-none">
-                                    <div class="flex items-center gap-1 p-2 hover:bg-surface/50 rounded border border-transparent hover:border-border-light transition-colors directory-item-folder group" 
+                                <div class="mb-1 select-none directory-node" data-id="${node.id}" draggable="true">
+                                    <div class="flex items-center gap-1 p-2 hover:bg-surface/50 rounded border border-transparent hover:border-border-light transition-colors directory-item-folder group ${selectedClass}" 
                                          data-id="${node.id}" style="padding-left: ${padding}px">
                                          
+                                        <input type="checkbox" class="sidebar-checkbox" data-id="${node.id}" ${checkedAttr}>
+
                                         <button class="folder-toggle-btn p-1 text-text-meta hover:text-primary rounded focus:outline-none" data-id="${node.id}">
                                             <span class="material-symbols-outlined text-lg transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}">arrow_right</span>
                                         </button>
@@ -2599,16 +2695,17 @@
                                             <span class="text-xs text-text-light truncate">${node.name}</span>
                                         </div>
                                     </div>
-                                    <div class="folder-children ${isExpanded ? '' : 'hidden'}" id="children-${node.id}">
+                                    <div class="folder-children ${isExpanded ? '' : 'hidden'}" id="children-${node.id}" data-parent-id="${node.id}">
                                         ${buildHtml(node.children, level + 1)}
                                     </div>
                                 </div>
                             `;
                         } else if (node.type === 'note') {
                             html += `
-                                <div class="mb-1">
-                                    <div class="flex items-center gap-2 p-2 hover:bg-surface/50 cursor-pointer rounded border border-transparent hover:border-border-light transition-colors directory-item-note" 
+                                <div class="mb-1 directory-node" data-id="${node.id}" draggable="true">
+                                    <div class="flex items-center gap-2 p-2 hover:bg-surface/50 cursor-pointer rounded border border-transparent hover:border-border-light transition-colors directory-item-note ${selectedClass}" 
                                          data-id="${node.id}" data-item-ref-id="${node.itemRefId}" style="padding-left: ${padding + 28}px">
+                                        <input type="checkbox" class="sidebar-checkbox" data-id="${node.id}" ${checkedAttr}>
                                         <span class="material-symbols-outlined text-lg text-text-meta">description</span>
                                         <span class="text-xs text-text-light truncate">${node.name}</span>
                                     </div>
@@ -2616,9 +2713,10 @@
                             `;
                         } else if (node.type === 'task') {
                             html += `
-                                <div class="mb-1">
-                                    <div class="flex items-center gap-2 p-2 hover:bg-surface/50 cursor-pointer rounded border border-transparent hover:border-border-light transition-colors directory-item-task" 
+                                <div class="mb-1 directory-node" data-id="${node.id}" draggable="true">
+                                    <div class="flex items-center gap-2 p-2 hover:bg-surface/50 cursor-pointer rounded border border-transparent hover:border-border-light transition-colors directory-item-task ${selectedClass}" 
                                          data-id="${node.id}" data-item-ref-id="${node.itemRefId}" style="padding-left: ${padding + 28}px">
+                                        <input type="checkbox" class="sidebar-checkbox" data-id="${node.id}" ${checkedAttr}>
                                         <span class="material-symbols-outlined text-lg text-text-meta">check_circle</span>
                                         <span class="text-xs text-text-light truncate">${node.name}</span>
                                     </div>
@@ -2631,7 +2729,8 @@
 
                 let html = `
                     <div class="mb-2 select-none">
-                        <div class="flex items-center gap-2 p-2 bg-primary/10 cursor-pointer rounded border border-primary/30 directory-item-home" data-id="${rootId}">
+                        <div class="flex items-center gap-2 p-2 bg-primary/10 cursor-pointer rounded border border-primary/30 directory-item-home" 
+                             data-id="${rootId}" data-drop-target="true">
                             <span class="material-symbols-outlined text-lg text-primary">${homeIcon}</span>
                             <span class="text-xs text-primary font-bold">${homeLabel}</span>
                         </div>
@@ -2641,76 +2740,379 @@
                 html += buildHtml(tree);
                 directoryTreeContainer.innerHTML = html;
 
-                // Attach Listeners
-                
-                // Toggle Buttons
-                document.querySelectorAll('.folder-toggle-btn').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        const id = e.currentTarget.dataset.id;
-                        if (expandedFolders.has(id)) {
-                            expandedFolders.delete(id);
-                        } else {
-                            expandedFolders.add(id);
-                        }
-                        renderDirectoryTree();
-                    });
-                });
-
-                // Folder Click
-                document.querySelectorAll('.folder-label').forEach(item => {
-                    item.addEventListener('click', (e) => {
-                        const folderId = e.currentTarget.dataset.id;
-                        if (isTasks) {
-                             currentTasksFolder = folderId;
-                             location.hash = `#page-todos-list/${folderId}`;
-                        } else {
-                             currentNotesFolder = folderId;
-                             notesSearchInput.value = "";
-                             currentSearchQuery = "";
-                             location.hash = `#page-notes-list/${folderId}`;
-                        }
-                        closeSidebar();
-                    });
-                });
-
-                // Home Click
-                 document.querySelector('.directory-item-home').addEventListener('click', () => {
-                    if (isTasks) {
-                        currentTasksFolder = 'root_tasks';
-                        location.hash = `#page-todos-list/root_tasks`;
-                    } else {
-                        currentNotesFolder = 'root_notes';
-                        notesSearchInput.value = "";
-                        currentSearchQuery = "";
-                        location.hash = `#page-notes-list/root_notes`;
-                    }
-                    closeSidebar();
-                });
-
-                // Note Click
-                document.querySelectorAll('.directory-item-note').forEach(item => {
-                    item.addEventListener('click', (e) => {
-                        const noteId = e.currentTarget.dataset.itemRefId;
-                        location.hash = `#page-note-details/${noteId}`;
-                        closeSidebar();
-                    });
-                });
-
-                // Task Click
-                document.querySelectorAll('.directory-item-task').forEach(item => {
-                    item.addEventListener('click', (e) => {
-                        const taskId = e.currentTarget.dataset.itemRefId;
-                        location.hash = `#page-task-edit/${taskId}`;
-                        closeSidebar();
-                    });
-                });
+                attachSidebarListeners(isTasks);
+                // setupSidebarDragAndDrop called in setupEventListeners once
 
             } catch (err) {
                 console.error("Error rendering directory:", err);
                 directoryTreeContainer.innerHTML = '<div class="text-xs text-danger">Error loading directory.</div>';
             }
         }
+
+        function attachSidebarListeners(isTasks) {
+            // Toggle Buttons
+            document.querySelectorAll('.folder-toggle-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const id = e.currentTarget.dataset.id;
+                    if (expandedFolders.has(id)) {
+                        expandedFolders.delete(id);
+                    } else {
+                        expandedFolders.add(id);
+                    }
+                    renderDirectoryTree();
+                });
+            });
+
+            // Checkbox Logic
+            document.querySelectorAll('.sidebar-checkbox').forEach(chk => {
+                chk.addEventListener('change', (e) => {
+                    e.stopPropagation();
+                    const id = e.target.dataset.id;
+                    if (e.target.checked) {
+                        sidebarSelectedIds.add(id);
+                    } else {
+                        sidebarSelectedIds.delete(id);
+                    }
+                    renderDirectoryTree(); // Re-render to update styles
+                });
+            });
+
+            // Long Press & Click Handler
+            const items = document.querySelectorAll('.directory-item-folder, .directory-item-note, .directory-item-task');
+            items.forEach(item => {
+                const id = item.dataset.id;
+                
+                // Long Press Detection
+                const startPress = (e) => {
+                    // Ignore if clicking checkbox or toggle button
+                    if (e.target.classList.contains('sidebar-checkbox') || 
+                        e.target.closest('.folder-toggle-btn')) return;
+
+                    sidebarLongPressTimer = setTimeout(() => {
+                        if (!sidebarSelectionMode) {
+                            toggleSidebarSelectionMode(true);
+                            sidebarSelectedIds.add(id);
+                            renderDirectoryTree();
+                            
+                            // Haptic feedback if available
+                            if (navigator.vibrate) navigator.vibrate(50);
+                        }
+                    }, 500); // 500ms long press
+                };
+
+                const cancelPress = () => {
+                    if (sidebarLongPressTimer) {
+                        clearTimeout(sidebarLongPressTimer);
+                        sidebarLongPressTimer = null;
+                    }
+                };
+
+                item.addEventListener('mousedown', startPress);
+                item.addEventListener('touchstart', startPress, {passive: true});
+                item.addEventListener('mouseup', cancelPress);
+                item.addEventListener('mouseleave', cancelPress);
+                item.addEventListener('touchend', cancelPress);
+                item.addEventListener('touchmove', cancelPress); // Cancel on scroll/drag
+
+                // Click Logic
+                item.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('sidebar-checkbox') || 
+                        e.target.closest('.folder-toggle-btn')) return;
+
+                    if (sidebarMoveMode) {
+                        // If clicking a folder while in move mode, execute move
+                        if (item.classList.contains('directory-item-folder') || item.classList.contains('directory-item-home')) {
+                            const folderId = item.dataset.id || item.querySelector('.folder-label').dataset.id;
+                            executeMoveToFolder(folderId);
+                        }
+                        return;
+                    }
+
+                    if (sidebarSelectionMode) {
+                        // Toggle Selection
+                        if (sidebarSelectedIds.has(id)) {
+                            sidebarSelectedIds.delete(id);
+                        } else {
+                            sidebarSelectedIds.add(id);
+                        }
+                        renderDirectoryTree();
+                    } else {
+                        // Navigation
+                        if (item.classList.contains('directory-item-folder')) {
+                            const folderId = item.querySelector('.folder-label').dataset.id;
+                            navigateToFolder(folderId, isTasks);
+                        } else if (item.classList.contains('directory-item-note')) {
+                            const noteId = item.dataset.itemRefId;
+                            location.hash = `#page-note-details/${noteId}`;
+                            closeSidebar();
+                        } else if (item.classList.contains('directory-item-task')) {
+                            const taskId = item.dataset.itemRefId;
+                            location.hash = `#page-task-edit/${taskId}`;
+                            closeSidebar();
+                        }
+                    }
+                });
+            });
+
+            // Home Click
+             document.querySelector('.directory-item-home').addEventListener('click', (e) => {
+                const rootId = e.currentTarget.dataset.id;
+                if (sidebarMoveMode) {
+                    executeMoveToFolder(rootId);
+                    return;
+                }
+                
+                if (!sidebarSelectionMode) {
+                    navigateToFolder(rootId, isTasks);
+                }
+            });
+        }
+
+        function navigateToFolder(folderId, isTasks) {
+            if (isTasks) {
+                 currentTasksFolder = folderId;
+                 location.hash = `#page-todos-list/${folderId}`;
+            } else {
+                 currentNotesFolder = folderId;
+                 notesSearchInput.value = "";
+                 currentSearchQuery = "";
+                 location.hash = `#page-notes-list/${folderId}`;
+            }
+            closeSidebar();
+        }
+
+        function toggleSidebarSelectionMode(active) {
+            sidebarSelectionMode = active;
+            if (!active) {
+                sidebarSelectedIds.clear();
+            }
+            renderDirectoryTree();
+        }
+
+        function setupSidebarDragAndDrop() {
+            const container = document.getElementById('directory-tree-container');
+            
+            let draggedNodeId = null;
+            let dragOverNodeId = null;
+            let dragPosition = null; // 'before', 'after', 'inside'
+
+            container.addEventListener('dragstart', (e) => {
+                if (sidebarLongPressTimer) {
+                    clearTimeout(sidebarLongPressTimer);
+                    sidebarLongPressTimer = null;
+                }
+
+                const target = e.target.closest('.directory-node');
+                if (!target) return;
+                
+                // If in selection mode, maybe we are dragging multiple?
+                // For now, let's stick to single drag or check if target is in selection
+                if (sidebarSelectionMode && !sidebarSelectedIds.has(target.dataset.id)) {
+                    e.preventDefault();
+                    return;
+                }
+
+                draggedNodeId = target.dataset.id;
+                sidebarDragItem = target;
+                e.dataTransfer.effectAllowed = 'move';
+                setTimeout(() => target.classList.add('directory-item-dragging'), 0);
+            });
+
+            container.addEventListener('dragend', (e) => {
+                if (sidebarDragItem) {
+                    sidebarDragItem.classList.remove('directory-item-dragging');
+                    sidebarDragItem = null;
+                }
+                draggedNodeId = null;
+                document.querySelectorAll('.drag-over-top, .drag-over-bottom, .drag-over-inside').forEach(el => {
+                    el.classList.remove('drag-over-top', 'drag-over-bottom', 'drag-over-inside');
+                });
+            });
+
+            container.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const target = e.target.closest('.directory-node, .directory-item-home');
+                if (!target) return;
+                
+                const targetId = target.dataset.id;
+                if (targetId === draggedNodeId) return;
+
+                const rect = target.getBoundingClientRect();
+                const y = e.clientY - rect.top;
+                
+                // Clear classes
+                document.querySelectorAll('.drag-over-top, .drag-over-bottom, .drag-over-inside').forEach(el => {
+                    el.classList.remove('drag-over-top', 'drag-over-bottom', 'drag-over-inside');
+                });
+
+                // Logic for Drop Position
+                // If it's Home, we can only drop inside
+                if (target.classList.contains('directory-item-home')) {
+                    target.classList.add('drag-over-inside');
+                    dragOverNodeId = targetId;
+                    dragPosition = 'inside';
+                    return;
+                }
+                
+                // Check if target is a folder
+                const isFolder = target.classList.contains('directory-item-folder');
+
+                // If it's NOT a folder (e.g. note/task), we can only drop before or after
+                if (!isFolder) {
+                    const threshold = rect.height * 0.5; // 50% split for items
+                    if (y < threshold) {
+                        target.classList.add('drag-over-top');
+                        dragPosition = 'before';
+                    } else {
+                        target.classList.add('drag-over-bottom');
+                        dragPosition = 'after';
+                    }
+                } else {
+                     // For Folders: Top 25% = before, Bottom 25% = after, Middle 50% = inside
+                    const threshold = rect.height * 0.25;
+                    if (y < threshold) {
+                        target.classList.add('drag-over-top');
+                        dragPosition = 'before';
+                    } else if (y > rect.height - threshold) {
+                        target.classList.add('drag-over-bottom');
+                        dragPosition = 'after';
+                    } else {
+                        target.classList.add('drag-over-inside');
+                        dragPosition = 'inside';
+                    }
+                }
+                dragOverNodeId = targetId;
+            });
+
+            container.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                if (!draggedNodeId || !dragOverNodeId) return;
+
+                const itemsToMove = sidebarSelectionMode ? Array.from(sidebarSelectedIds) : [draggedNodeId];
+                
+                // Perform Move
+                // If position is 'inside', parentId becomes dragOverNodeId
+                // If position is 'before'/'after', parentId becomes dragOverNodeId's parent
+                
+                // Fetch drop target node details
+                let targetParentId = null;
+                let newOrder = Date.now(); // Default fallback
+
+                if (dragPosition === 'inside') {
+                    targetParentId = dragOverNodeId; // Dropping inside a folder/root
+                    // Order: make it last or first? Let's fetch items in folder to calc order? 
+                    // Or just timestamp.
+                } else {
+                    // Fetch dragOverNode to get its parent and order
+                    const encryptedTarget = await db.get('fs_nodes', dragOverNodeId);
+                    if (encryptedTarget) {
+                        const targetNode = decrypt(encryptedTarget.data, password);
+                        targetParentId = targetNode.parentId;
+                        // Calculate new order
+                        // If before: targetOrder - 1 (or average)
+                        // If after: targetOrder + 1
+                        // For simple reordering, we usually need to re-index or use fractional indexing.
+                        // Here we use simple timestamp/integer. 
+                        newOrder = (targetNode.order || 0) + (dragPosition === 'before' ? -1 : 1);
+                    }
+                }
+
+                // Verify targetParentId is a folder or root
+                if (!targetParentId) return; // Should catch root case if root is target
+                
+                // SAFETY CHECK: Verify that if we are dropping 'inside', the target is actually a folder
+                if (dragPosition === 'inside' && targetParentId !== rootId) {
+                     const encryptedCheck = await db.get('fs_nodes', targetParentId);
+                     if (encryptedCheck) {
+                         const checkNode = decrypt(encryptedCheck.data, password);
+                         if (checkNode && checkNode.type !== 'folder') {
+                             console.warn("Prevented drop inside non-folder:", checkNode.name);
+                             return; 
+                         }
+                     }
+                }
+
+                // Execute Move for all items
+                for (const itemId of itemsToMove) {
+                    if (itemId === targetParentId) continue; // Cannot move folder into itself
+                    
+                    const encryptedItem = await db.get('fs_nodes', itemId);
+                    if (encryptedItem) {
+                        const item = decrypt(encryptedItem.data, password);
+                        item.parentId = targetParentId;
+                        
+                        // Update Order only if we are reordering siblings
+                        if (dragPosition !== 'inside') {
+                             item.order = newOrder; 
+                             // Note: In a real app, we'd distribute orders better to avoid collisions
+                             // For now, slight increment to keep relative order of moved items
+                             newOrder += 0.001;
+                        }
+                        
+                        const enc = encrypt(item, password);
+                        await db.put('fs_nodes', { id: itemId, data: enc });
+                    }
+                }
+
+                // Reset Selection
+                toggleSidebarSelectionMode(false);
+                renderDirectoryTree();
+                
+                // If current view is affected, refresh it
+                if (location.hash.includes(currentNotesFolder) || location.hash.includes(currentTasksFolder)) {
+                    // logic to refresh main view if needed
+                    if (document.getElementById('page-notes-list').style.display !== 'none') renderNotesList();
+                    if (document.getElementById('page-todos-list').style.display !== 'none') renderTasksList();
+                }
+            });
+        }
+
+        // Mode Handling
+        let sidebarMoveMode = false;
+
+        function handleSidebarMoveAction() {
+            // User clicked "Move" in options menu
+            // Show instruction: "Select destination folder"
+            // We can reuse the sidebar rendering to show "Select" buttons next to folders?
+            // Or just click a folder to move?
+            
+            const count = sidebarSelectedIds.size;
+            if (count === 0) return;
+            
+            alert(`Select a destination folder in the sidebar to move ${count} item(s).`);
+            sidebarMoveMode = true;
+            
+            // Visual cue?
+            document.getElementById('sidebar-move-btn').innerHTML = '<span class="material-symbols-outlined animate-pulse">arrow_circle_right</span> Select Destination...';
+        }
+
+        async function executeMoveToFolder(targetFolderId) {
+            if (!sidebarMoveMode) return;
+            
+            const itemsToMove = Array.from(sidebarSelectedIds);
+            for (const itemId of itemsToMove) {
+                if (itemId === targetFolderId) continue;
+                
+                const encryptedItem = await db.get('fs_nodes', itemId);
+                if (encryptedItem) {
+                    const item = decrypt(encryptedItem.data, password);
+                    item.parentId = targetFolderId;
+                    const enc = encrypt(item, password);
+                    await db.put('fs_nodes', { id: itemId, data: enc });
+                }
+            }
+            
+            // Reset
+            sidebarMoveMode = false;
+            toggleSidebarSelectionMode(false);
+            document.getElementById('sidebar-move-btn').innerHTML = '<span class="material-symbols-outlined text-base">drive_file_move</span> Move';
+            
+            renderDirectoryTree();
+            if (document.getElementById('page-notes-list').style.display !== 'none') renderNotesList();
+            if (document.getElementById('page-todos-list').style.display !== 'none') renderTasksList();
+        }
+
         
         function handleTouchStart(e) {
             touchStartX = e.changedTouches[0].screenX;
@@ -2789,6 +3191,10 @@
 
         function setupEventListeners() {
             // Sidebar Listeners
+            setupSidebarDragAndDrop();
+            document.getElementById('sidebar-cancel-selection').addEventListener('click', () => toggleSidebarSelectionMode(false));
+            document.getElementById('sidebar-move-btn').addEventListener('click', handleSidebarMoveAction);
+
             document.getElementById('header-icon').parentElement.addEventListener('click', (e) => {
                 // Check if we are in notes list OR todos list
                 if (!document.getElementById('page-notes-list').classList.contains('hidden') || 
