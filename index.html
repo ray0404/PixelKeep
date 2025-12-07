@@ -935,7 +935,13 @@
     <script src="crypto-js.min.js"></script>
 
     <script type="module">
-        const { openDB } = idb;
+        window.onerror = function(msg, url, line, col, error) {
+            alert("Global Error: " + msg + "\nLine: " + line);
+            console.error("Global Error", error);
+            return false;
+        };
+
+        // const { openDB } = idb;
 
         // --- State ---
         let db;
@@ -1222,7 +1228,7 @@
 
         // --- Database Setup ---
         async function initDB() {
-            db = await openDB('PixelPWADatabase', 3, {
+            db = await idb.openDB('PixelPWADatabase', 3, {
                 upgrade(db) {
                     if (!db.objectStoreNames.contains('notes')) {
                         db.createObjectStore('notes', { keyPath: 'id' });
@@ -1245,7 +1251,7 @@
 
         // --- Authentication ---
         function sendKeyToServiceWorker(key) {
-            if (navigator.serviceWorker.controller) {
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
                 navigator.serviceWorker.controller.postMessage({
                     type: 'SET_PASSWORD',
                     password: key
@@ -1254,39 +1260,65 @@
         }
 
         // Ensure key is resent if page reloads and SW requests it
-        navigator.serviceWorker.addEventListener('message', (event) => {
-            if (event.data && event.data.type === 'REQUEST_PASSWORD' && isAuthenticated) {
-                sendKeyToServiceWorker(password);
-            }
-        });
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.addEventListener('message', (event) => {
+                if (event.data && event.data.type === 'REQUEST_PASSWORD' && isAuthenticated) {
+                    sendKeyToServiceWorker(password);
+                }
+            });
+        }
 
         async function handleUnlock() {
-            const enteredPassword = passwordInput.value.trim();
-            if (!enteredPassword) {
-                alert('Please enter a password.');
-                return;
-            }
+            try {
+                if (!db) {
+                    alert("Database is initializing... please wait a moment.");
+                    // Try to init again if missing
+                    try { await initDB(); } catch(e) { 
+                        alert("Database init failed: " + e.message); 
+                        return;
+                    }
+                }
 
-            const check = await db.get('meta', 'password_check');
-            
-            if (check) {
-                if (decrypt(check.value, enteredPassword) === 'ok') {
+                const enteredPassword = passwordInput.value.trim();
+                if (!enteredPassword) {
+                    alert('Please enter a password.');
+                    return;
+                }
+
+                const check = await db.get('meta', 'password_check');
+                
+                if (check) {
+                    if (decrypt(check.value, enteredPassword) === 'ok') {
+                        password = enteredPassword;
+                        isAuthenticated = true;
+                        sendKeyToServiceWorker(password); // NEW: Send password to SW
+                        try {
+                            await runMigrationV2();
+                        } catch (err) {
+                            console.error("Migration failed:", err);
+                            alert("Migration failed: " + err.message);
+                        }
+                        startApp();
+                    } else {
+                        alert('Wrong password.');
+                    }
+                } else {
+                    const verification = { key: 'password_check', value: encrypt('ok', enteredPassword) };
+                    await db.put('meta', verification);
                     password = enteredPassword;
                     isAuthenticated = true;
                     sendKeyToServiceWorker(password); // NEW: Send password to SW
-                    await runMigrationV2();
+                    try {
+                        await runMigrationV2();
+                    } catch (err) {
+                        console.error("Migration failed:", err);
+                        alert("Migration failed: " + err.message);
+                    }
                     startApp();
-                } else {
-                    alert('Wrong password.');
                 }
-            } else {
-                const verification = { key: 'password_check', value: encrypt('ok', enteredPassword) };
-                await db.put('meta', verification);
-                password = enteredPassword;
-                isAuthenticated = true;
-                sendKeyToServiceWorker(password); // NEW: Send password to SW
-                await runMigrationV2();
-                startApp();
+            } catch (e) {
+                console.error("Login error:", e);
+                alert("Login error: " + e.message);
             }
         }
 
@@ -4352,92 +4384,59 @@
 
         // --- App Initialization ---
         async function main() {
-            await initDB();
-            loadSettings();
-            
-            unlockButton.addEventListener('click', handleUnlock);
-            passwordInput.addEventListener('keyup', (e) => {
-                if (e.key === 'Enter') {
-                    handleUnlock();
-                }
-            });
-
-            // Settings Listeners
-            document.getElementById('setting-theme').addEventListener('change', (e) => {
-                const themeName = e.target.value;
-                settings.currentTheme = themeName;
+            // 1. Attach Listeners Immediately (so button works even if DB hangs)
+            try {
+                unlockButton.addEventListener('click', handleUnlock);
+                passwordInput.addEventListener('keyup', (e) => {
+                    if (e.key === 'Enter') {
+                        handleUnlock();
+                    }
+                });
                 
-                if (themes[themeName]) {
-                    const theme = themes[themeName];
-                    settings.font = theme.font;
-                    settings.bg = theme.bg;
-                    settings.primaryColor = theme.primaryColor;
-                    settings.secondaryColor = theme.secondaryColor;
-                    settings.textColor = theme.textColor;
-                    settings.lineHeight = theme.lineHeight;
-                    settings.compact = theme.compact;
-                    settings.wordWrap = theme.wordWrap;
-                    
-                    // Refresh UI to show new values
-                    initSettingsUI();
-                }
+                // Other listeners can wait or be here, but login is critical
+                document.getElementById('setting-theme').addEventListener('change', (e) => {
+                    const themeName = e.target.value;
+                    settings.currentTheme = themeName;
+                    if (themes[themeName]) {
+                        const theme = themes[themeName];
+                        Object.assign(settings, theme);
+                        initSettingsUI();
+                    }
+                    saveSettings();
+                });
+                // ... (rest of listeners are fine to stay or move, but for minimal diff we keep the structure simple)
+            } catch (e) {
+                console.error("Error attaching listeners", e);
+            }
+
+            // 2. Initialize App
+            try {
+                loadSettings(); // Settings don't need DB, load them first for UI
+                await initDB();
                 
-                saveSettings();
-            });
+                // Rest of the listeners (copying the block from previous code to ensure they are attached)
+                document.getElementById('setting-primary-color').addEventListener('input', (e) => { settings.primaryColor = e.target.value; saveSettings(); });
+                document.getElementById('setting-secondary-color').addEventListener('input', (e) => { settings.secondaryColor = e.target.value; saveSettings(); });
+                document.getElementById('setting-text-color').addEventListener('change', (e) => { settings.textColor = e.target.value; saveSettings(); });
+                document.getElementById('setting-scale').addEventListener('input', (e) => { settings.scale = e.target.value; document.getElementById('setting-scale-value').textContent = `${settings.scale}%`; saveSettings(); });
+                document.getElementById('setting-font').addEventListener('change', (e) => { settings.font = e.target.value; saveSettings(); });
+                document.getElementById('setting-bg').addEventListener('change', (e) => { settings.bg = e.target.value; saveSettings(); });
+                document.getElementById('setting-line-height').addEventListener('change', (e) => { settings.lineHeight = e.target.value; saveSettings(); });
+                document.getElementById('setting-compact').addEventListener('change', (e) => { settings.compact = e.target.checked; saveSettings(); });
+                document.getElementById('setting-word-wrap').addEventListener('change', (e) => { settings.wordWrap = (e.target.value === 'true'); saveSettings(); });
+                document.getElementById('setting-content-font-size').addEventListener('input', (e) => { settings.contentFontSize = e.target.value; document.getElementById('setting-content-font-size-value').textContent = `${settings.contentFontSize}%`; saveSettings(); });
+                document.getElementById('export-button').addEventListener('click', exportNotes);
+                document.getElementById('export-selected-button').addEventListener('click', exportSelectedNotes);
+                document.getElementById('delete-selected-button').addEventListener('click', deleteSelectedItems);
+                document.getElementById('move-out-button').addEventListener('click', moveOutSelectedItems);
+                document.getElementById('import-button').addEventListener('click', () => { document.getElementById('import-file-input').click(); });
+                document.getElementById('import-file-input').addEventListener('change', importNotes);
 
-            document.getElementById('setting-primary-color').addEventListener('input', (e) => {
-                settings.primaryColor = e.target.value;
-                // Customizing breaks the "theme" link effectively, but we keep the name for now
-                saveSettings();
-            });
-            document.getElementById('setting-secondary-color').addEventListener('input', (e) => {
-                settings.secondaryColor = e.target.value;
-                saveSettings();
-            });
-            document.getElementById('setting-text-color').addEventListener('change', (e) => {
-                settings.textColor = e.target.value;
-                saveSettings();
-            });
-            document.getElementById('setting-scale').addEventListener('input', (e) => {
-                settings.scale = e.target.value;
-                document.getElementById('setting-scale-value').textContent = `${settings.scale}%`;
-                saveSettings();
-            });
-            document.getElementById('setting-font').addEventListener('change', (e) => {
-                settings.font = e.target.value;
-                saveSettings();
-            });
-            document.getElementById('setting-bg').addEventListener('change', (e) => {
-                settings.bg = e.target.value;
-                saveSettings();
-            });
-            document.getElementById('setting-line-height').addEventListener('change', (e) => {
-                settings.lineHeight = e.target.value;
-                saveSettings();
-            });
-            document.getElementById('setting-compact').addEventListener('change', (e) => {
-                settings.compact = e.target.checked;
-                saveSettings();
-            });
-            document.getElementById('setting-word-wrap').addEventListener('change', (e) => {
-                settings.wordWrap = (e.target.value === 'true');
-                saveSettings();
-            });
-            document.getElementById('setting-content-font-size').addEventListener('input', (e) => {
-                settings.contentFontSize = e.target.value;
-                document.getElementById('setting-content-font-size-value').textContent = `${settings.contentFontSize}%`;
-                saveSettings();
-            });
-            document.getElementById('export-button').addEventListener('click', exportNotes);
-            document.getElementById('export-selected-button').addEventListener('click', exportSelectedNotes);
-            document.getElementById('delete-selected-button').addEventListener('click', deleteSelectedItems);
-            document.getElementById('move-out-button').addEventListener('click', moveOutSelectedItems);
-            document.getElementById('import-button').addEventListener('click', () => {
-                document.getElementById('import-file-input').click();
-            });
-            document.getElementById('import-file-input').addEventListener('change', importNotes);
-
-            registerServiceWorker();
+                registerServiceWorker();
+            } catch (e) {
+                console.error("App Initialization Error:", e);
+                alert("Critical Error: App failed to initialize. " + e.message);
+            }
         }
 
         main();
