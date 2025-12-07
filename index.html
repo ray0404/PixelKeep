@@ -1065,6 +1065,7 @@
 
         // --- Image Handling Helpers ---
         function revokeActiveObjectUrls() {
+            // No longer needed for images, but kept if used elsewhere or for future features
             activeObjectUrls.forEach(url => URL.revokeObjectURL(url));
             activeObjectUrls = [];
         }
@@ -1077,21 +1078,39 @@
 
             for (const img of images) {
                 const src = img.getAttribute('src');
+
+                // Only process new Data URLs (freshly pasted/uploaded)
                 if (src && src.startsWith('data:image')) {
                     const id = (typeof crypto.randomUUID === 'function') ? crypto.randomUUID() : (Date.now() + '-' + Math.random().toString(36).substr(2, 9));
-                    // Encrypt the base64 string
-                    const encryptedImage = encrypt({ content: src }, password);
-                    await db.put('images', { id: id, data: encryptedImage });
 
-                    img.src = `pixel-keep://image/${id}`;
+                    // 1. Convert Data URL to Blob (Binary)
+                    const res = await fetch(src);
+                    const blob = await res.blob();
+                    const arrayBuffer = await blob.arrayBuffer();
+
+                    // 2. Encrypt Binary Data
+                    // Note: CryptoJS works on WordArrays. We convert ArrayBuffer -> WordArray
+                    const wordArray = CryptoJS.lib.WordArray.create(arrayBuffer);
+                    const encrypted = CryptoJS.AES.encrypt(wordArray, password).toString();
+
+                    // 3. Store encrypted string + MIME type
+                    await db.put('images', {
+                        id: id,
+                        data: encrypted,
+                        mimeType: blob.type
+                    });
+
+                    // 4. Set src to virtual path
+                    img.src = `/secure-img/${id}`;
                     modified = true;
                 }
             }
             return modified ? doc.body.innerHTML : htmlContent;
         }
 
-        async function restoreImagesForDisplay(htmlContent) {
-            if (!htmlContent.includes('pixel-keep://image/')) return htmlContent;
+        async function reembedImagesForExport(htmlContent) {
+            // Check for both old protocol and new virtual path
+            if (!htmlContent.includes('pixel-keep://image/') && !htmlContent.includes('/secure-img/')) return htmlContent;
 
             const parser = new DOMParser();
             const doc = parser.parseFromString(htmlContent, 'text/html');
@@ -1100,43 +1119,41 @@
 
             for (const img of images) {
                 const src = img.getAttribute('src');
-                if (src && src.startsWith('pixel-keep://image/')) {
-                    const id = src.split('pixel-keep://image/')[1];
-                    const encryptedImage = await db.get('images', id);
-                    if (encryptedImage) {
-                        const imageData = decrypt(encryptedImage.data, password);
-                        if (imageData && imageData.content) {
-                            const res = await fetch(imageData.content);
+
+                // Handle new virtual path
+                if (src && src.startsWith('/secure-img/')) {
+                    try {
+                        const res = await fetch(src); // Service Worker intercepts and decrypts
+                        if (res.ok) {
                             const blob = await res.blob();
-                            const url = URL.createObjectURL(blob);
-                            activeObjectUrls.push(url);
-                            img.src = url;
+                            const reader = new FileReader();
+                            // Convert Blob to Base64
+                            const base64 = await new Promise((resolve, reject) => {
+                                reader.onloadend = () => resolve(reader.result);
+                                reader.onerror = reject;
+                                reader.readAsDataURL(blob);
+                            });
+                            img.src = base64;
                             modified = true;
                         }
+                    } catch (e) {
+                        console.error("Failed to export image", e);
                     }
                 }
-            }
-            return modified ? doc.body.innerHTML : htmlContent;
-        }
-
-        async function reembedImagesForExport(htmlContent) {
-            if (!htmlContent.includes('pixel-keep://image/')) return htmlContent;
-
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(htmlContent, 'text/html');
-            const images = doc.querySelectorAll('img');
-            let modified = false;
-
-            for (const img of images) {
-                const src = img.getAttribute('src');
-                if (src && src.startsWith('pixel-keep://image/')) {
+                // Handle legacy protocol (if any remain)
+                else if (src && src.startsWith('pixel-keep://image/')) {
                      const id = src.split('pixel-keep://image/')[1];
                      const encryptedImage = await db.get('images', id);
                      if (encryptedImage) {
-                         const imageData = decrypt(encryptedImage.data, password);
-                         if (imageData && imageData.content) {
-                             img.src = imageData.content; // Restore Base64
-                             modified = true;
+                         // Attempt legacy decryption
+                         try {
+                            const imageData = decrypt(encryptedImage.data, password);
+                            if (imageData && imageData.content) {
+                                img.src = imageData.content; // Restore Base64
+                                modified = true;
+                            }
+                         } catch (e) {
+                             console.warn("Legacy image export failed", e);
                          }
                      }
                 }
@@ -1168,6 +1185,22 @@
         }
 
         // --- Authentication ---
+        function sendKeyToServiceWorker(key) {
+            if (navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({
+                    type: 'SET_PASSWORD',
+                    password: key
+                });
+            }
+        }
+
+        // Ensure key is resent if page reloads and SW requests it
+        navigator.serviceWorker.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'REQUEST_PASSWORD' && isAuthenticated) {
+                sendKeyToServiceWorker(password);
+            }
+        });
+
         async function handleUnlock() {
             const enteredPassword = passwordInput.value.trim();
             if (!enteredPassword) {
@@ -1181,6 +1214,7 @@
                 if (decrypt(check.value, enteredPassword) === 'ok') {
                     password = enteredPassword;
                     isAuthenticated = true;
+                    sendKeyToServiceWorker(password); // NEW: Send password to SW
                     await runMigrationV2();
                     startApp();
                 } else {
@@ -1191,6 +1225,7 @@
                 await db.put('meta', verification);
                 password = enteredPassword;
                 isAuthenticated = true;
+                sendKeyToServiceWorker(password); // NEW: Send password to SW
                 await runMigrationV2();
                 startApp();
             }
@@ -1826,8 +1861,8 @@
             const note = decrypt(encryptedNote.data, password);
 
             noteDetailTitle.textContent = note.title;
-            const contentWithImages = await restoreImagesForDisplay(note.content);
-            noteDetailContent.innerHTML = contentWithImages;
+            // Handle both new virtual paths and legacy protocol by replacing legacy prefix on the fly
+            noteDetailContent.innerHTML = note.content.replace(/pixel-keep:\/\/image\//g, '/secure-img/');
             noteDetailMeta.textContent = `Last edited: ${new Date(note.updatedAt).toLocaleString()}`;
             
             const copyBtn = document.getElementById('note-detail-copy-btn');
@@ -1932,8 +1967,8 @@
                          }
                     }
 
-                    const contentWithImages = await restoreImagesForDisplay(content);
-                    noteEditContent.innerHTML = contentWithImages;
+                    // Handle both new virtual paths and legacy protocol by replacing legacy prefix on the fly
+                    noteEditContent.innerHTML = content.replace(/pixel-keep:\/\/image\//g, '/secure-img/');
                     
                     noteEditTags.value = (note.tags || []).join(', ');
                     
