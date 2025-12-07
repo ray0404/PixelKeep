@@ -904,6 +904,7 @@
         let currentNotesFolder = "root_notes";
         let currentTasksFolder = "root_tasks";
         let currentSearchQuery = ""; // State for search
+        let activeObjectUrls = []; // Track Blob URLs to prevent memory leaks
         
         // Sidebar State
         let sidebarSelectionMode = false;
@@ -1062,9 +1063,90 @@
             }
         }
 
+        // --- Image Handling Helpers ---
+        function revokeActiveObjectUrls() {
+            activeObjectUrls.forEach(url => URL.revokeObjectURL(url));
+            activeObjectUrls = [];
+        }
+
+        async function extractImagesAndSave(htmlContent) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlContent, 'text/html');
+            const images = doc.querySelectorAll('img');
+            let modified = false;
+
+            for (const img of images) {
+                const src = img.getAttribute('src');
+                if (src && src.startsWith('data:image')) {
+                    const id = (typeof crypto.randomUUID === 'function') ? crypto.randomUUID() : (Date.now() + '-' + Math.random().toString(36).substr(2, 9));
+                    // Encrypt the base64 string
+                    const encryptedImage = encrypt({ content: src }, password);
+                    await db.put('images', { id: id, data: encryptedImage });
+
+                    img.src = `pixel-keep://image/${id}`;
+                    modified = true;
+                }
+            }
+            return modified ? doc.body.innerHTML : htmlContent;
+        }
+
+        async function restoreImagesForDisplay(htmlContent) {
+            if (!htmlContent.includes('pixel-keep://image/')) return htmlContent;
+
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlContent, 'text/html');
+            const images = doc.querySelectorAll('img');
+            let modified = false;
+
+            for (const img of images) {
+                const src = img.getAttribute('src');
+                if (src && src.startsWith('pixel-keep://image/')) {
+                    const id = src.split('pixel-keep://image/')[1];
+                    const encryptedImage = await db.get('images', id);
+                    if (encryptedImage) {
+                        const imageData = decrypt(encryptedImage.data, password);
+                        if (imageData && imageData.content) {
+                            const res = await fetch(imageData.content);
+                            const blob = await res.blob();
+                            const url = URL.createObjectURL(blob);
+                            activeObjectUrls.push(url);
+                            img.src = url;
+                            modified = true;
+                        }
+                    }
+                }
+            }
+            return modified ? doc.body.innerHTML : htmlContent;
+        }
+
+        async function reembedImagesForExport(htmlContent) {
+            if (!htmlContent.includes('pixel-keep://image/')) return htmlContent;
+
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlContent, 'text/html');
+            const images = doc.querySelectorAll('img');
+            let modified = false;
+
+            for (const img of images) {
+                const src = img.getAttribute('src');
+                if (src && src.startsWith('pixel-keep://image/')) {
+                     const id = src.split('pixel-keep://image/')[1];
+                     const encryptedImage = await db.get('images', id);
+                     if (encryptedImage) {
+                         const imageData = decrypt(encryptedImage.data, password);
+                         if (imageData && imageData.content) {
+                             img.src = imageData.content; // Restore Base64
+                             modified = true;
+                         }
+                     }
+                }
+            }
+             return modified ? doc.body.innerHTML : htmlContent;
+        }
+
         // --- Database Setup ---
         async function initDB() {
-            db = await openDB('PixelPWADatabase', 2, {
+            db = await openDB('PixelPWADatabase', 3, {
                 upgrade(db) {
                     if (!db.objectStoreNames.contains('notes')) {
                         db.createObjectStore('notes', { keyPath: 'id' });
@@ -1077,6 +1159,9 @@
                     }
                     if (!db.objectStoreNames.contains('fs_nodes')) {
                         db.createObjectStore('fs_nodes', { keyPath: 'id' });
+                    }
+                    if (!db.objectStoreNames.contains('images')) {
+                        db.createObjectStore('images', { keyPath: 'id' });
                     }
                 },
             });
@@ -1405,6 +1490,7 @@
         function router() {
             if (!isAuthenticated) return;
 
+            revokeActiveObjectUrls();
             removeImageSelection();
 
             const hash = location.hash || '#page-notes-list';
@@ -1547,6 +1633,11 @@
         // --- Notes CRUD & Rendering ---
 
         function stripHTML(html) {
+            if (!html) return "";
+            // Optimization for large content to prevent DOMParser crash
+            if (html.length > 50000) {
+                return html.replace(/<[^>]*>?/gm, ' ').substring(0, 500) + "...";
+            }
             const doc = new DOMParser().parseFromString(html, 'text/html');
             return doc.body.textContent || "";
         }
@@ -1735,7 +1826,8 @@
             const note = decrypt(encryptedNote.data, password);
 
             noteDetailTitle.textContent = note.title;
-            noteDetailContent.innerHTML = note.content; 
+            const contentWithImages = await restoreImagesForDisplay(note.content);
+            noteDetailContent.innerHTML = contentWithImages;
             noteDetailMeta.textContent = `Last edited: ${new Date(note.updatedAt).toLocaleString()}`;
             
             const copyBtn = document.getElementById('note-detail-copy-btn');
@@ -1840,7 +1932,8 @@
                          }
                     }
 
-                    noteEditContent.innerHTML = content;
+                    const contentWithImages = await restoreImagesForDisplay(content);
+                    noteEditContent.innerHTML = contentWithImages;
                     
                     noteEditTags.value = (note.tags || []).join(', ');
                     
@@ -1907,10 +2000,13 @@
                 order = noteData.order || id;
             }
 
+            // Extract images and save them to 'images' store, replacing with placeholders
+            const processedContent = await extractImagesAndSave(noteEditContent.innerHTML);
+
             const note = {
                 id: id,
                 title: noteEditTitle.value,
-                content: noteEditContent.innerHTML,
+                content: processedContent,
                 tags: tags,
                 audio: currentAudioBase64, // Save audio
                 updatedAt: new Date().toISOString(),
@@ -3536,6 +3632,11 @@
                 return;
             }
 
+            // Re-embed images for export
+            for (const note of notes) {
+                note.content = await reembedImagesForExport(note.content);
+            }
+
             const jsonString = JSON.stringify(notes, null, 2);
             const blob = new Blob([jsonString], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
@@ -3613,6 +3714,11 @@
                 return;
             }
 
+            // Re-embed images for export
+            for (const note of notesToExport) {
+                note.content = await reembedImagesForExport(note.content);
+            }
+
             const format = prompt("Export format (json, txt, or md):")?.toLowerCase();
             if (!format) return;
 
@@ -3664,6 +3770,13 @@
                 try {
                     const importedNotes = JSON.parse(e.target.result);
                     if (Array.isArray(importedNotes)) {
+                        // Extract images first if any
+                        for (const note of importedNotes) {
+                            if (note.content) {
+                                note.content = await extractImagesAndSave(note.content);
+                            }
+                        }
+
                         const tx = db.transaction(['notes', 'fs_nodes'], 'readwrite');
                         const promises = importedNotes.map((note, index) => {
                             if (note.title) {
