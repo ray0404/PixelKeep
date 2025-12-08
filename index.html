@@ -1163,7 +1163,7 @@
 
         // --- Database Setup ---
         async function initDB() {
-            db = await openDB('PixelPWADatabase', 3, {
+            db = await openDB('PixelPWADatabase', 4, {
                 upgrade(db) {
                     if (!db.objectStoreNames.contains('notes')) {
                         db.createObjectStore('notes', { keyPath: 'id' });
@@ -1179,6 +1179,9 @@
                     }
                     if (!db.objectStoreNames.contains('images')) {
                         db.createObjectStore('images', { keyPath: 'id' });
+                    }
+                    if (!db.objectStoreNames.contains('audio')) {
+                        db.createObjectStore('audio', { keyPath: 'id' });
                     }
                 },
             });
@@ -2038,12 +2041,38 @@
             // Extract images and save them to 'images' store, replacing with placeholders
             const processedContent = await extractImagesAndSave(noteEditContent.innerHTML);
 
+            // Process Audio: Offload to 'audio' store if it's data URI
+            let audioRef = currentAudioBase64;
+            // Check for data URI (handles data:audio/... and potentially data:video/... for webm audio)
+            if (currentAudioBase64 && currentAudioBase64.startsWith('data:')) {
+                 try {
+                     const audioId = `audio-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                     const response = await fetch(currentAudioBase64);
+                     const blob = await response.blob();
+                     const arrayBuffer = await blob.arrayBuffer();
+                     const wordArray = CryptoJS.lib.WordArray.create(arrayBuffer);
+                     const encryptedAudio = CryptoJS.AES.encrypt(wordArray, password).toString();
+
+                     await db.put('audio', {
+                        id: audioId,
+                        data: encryptedAudio,
+                        mimeType: blob.type
+                     });
+
+                     audioRef = `/secure-audio/${audioId}`;
+                 } catch (err) {
+                     console.error("Failed to process audio", err);
+                     alert("Failed to save audio recording.");
+                     return;
+                 }
+            }
+
             const note = {
                 id: id,
                 title: noteEditTitle.value,
                 content: processedContent,
                 tags: tags,
-                audio: currentAudioBase64, // Save audio
+                audio: audioRef, // Save audio reference (or null)
                 updatedAt: new Date().toISOString(),
                 order: order
             };

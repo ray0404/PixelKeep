@@ -38,7 +38,7 @@ async function getDecryptedImage(id) {
         throw new Error("Locked");
     }
 
-    const db = await idb.openDB(DB_NAME, 3); // Match your DB version
+    const db = await idb.openDB(DB_NAME, 4); // Match your DB version
     const record = await db.get('images', id);
 
     if (!record) throw new Error("Image not found");
@@ -140,6 +140,30 @@ self.addEventListener('fetch', event => {
           } catch (err) {
               // Return a placeholder "broken image" or "locked" icon
               if (err.message === "Locked") {
+                  return new Response("Locked", { status: 401 });
+              }
+              return new Response("Not found", { status: 404 });
+          }
+      }());
+      return;
+  }
+
+  // --- Virtual Server for Audio ---
+  if (url.pathname.startsWith('/secure-audio/')) {
+      const id = url.pathname.split('/')[2];
+
+      event.respondWith(async function() {
+          try {
+              const blob = await getDecryptedAudio(id);
+              return new Response(blob, {
+                  status: 200,
+                  headers: {
+                      'Content-Type': blob.type,
+                      'Cache-Control': 'public, max-age=31536000'
+                  }
+              });
+          } catch (err) {
+               if (err.message === "Locked") {
                   return new Response("Locked", { status: 401 });
               }
               return new Response("Not found", { status: 404 });
