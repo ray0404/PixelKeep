@@ -1368,6 +1368,14 @@
         function startApp() {
             unlockScreen.style.display = 'none';
             appContainer.style.display = 'flex';
+
+            if (!window.isSecureContext) {
+                const warning = document.createElement('div');
+                warning.className = 'bg-danger text-text-light text-center p-2 text-xs font-bold uppercase';
+                warning.innerHTML = '<span class="material-symbols-outlined align-bottom text-sm mr-1">warning</span> Insecure Connection! Media & Backup may fail. Use HTTPS or Localhost.';
+                appContainer.insertBefore(warning, appContainer.firstChild);
+            }
+
             setupEventListeners();
             setupDragAndDrop();
             setupAudioListeners(); 
@@ -3829,6 +3837,16 @@
         }
 
         // --- Import/Export ---
+        function wordArrayToUint8Array(wordArray) {
+            const len = wordArray.sigBytes;
+            const words = wordArray.words;
+            const u8 = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                u8[i] = (words[i >>> 2] >>> (24 - (i % 4) * 8)) & 0xff;
+            }
+            return u8;
+        }
+
         async function createZipExport(notes, format) {
             const zip = new JSZip();
             const mediaFolder = zip.folder("media");
@@ -3847,16 +3865,53 @@
                     let extension = 'png';
 
                     if (src && src.startsWith('/secure-img/')) {
+                         const id = src.split('/secure-img/')[1];
                          try {
-                             const res = await fetch(src);
-                             if (res.ok) {
-                                 blob = await res.blob();
-                                 if (blob.type === 'image/jpeg') extension = 'jpg';
-                                 else if (blob.type === 'image/gif') extension = 'gif';
-                                 else if (blob.type === 'image/webp') extension = 'webp';
+                             // Try direct DB access first (Reliable)
+                             const encryptedImage = await db.get('images', id);
+                             if (encryptedImage) {
+                                 // Decrypt manually
+                                 try {
+                                     const bytes = CryptoJS.AES.decrypt(encryptedImage.data, password);
+                                     
+                                     // Check if it was legacy string data or new binary data
+                                     // We try to convert to string first to check if it starts with data:image
+                                     try {
+                                        const str = bytes.toString(CryptoJS.enc.Utf8);
+                                        if (str && str.startsWith('data:image')) {
+                                            const res = await fetch(str);
+                                            blob = await res.blob();
+                                        }
+                                     } catch(e) {}
+
+                                     // If not blob yet, treat as binary
+                                     if (!blob) {
+                                         const u8arr = wordArrayToUint8Array(bytes);
+                                         blob = new Blob([u8arr], {type: encryptedImage.mimeType || 'image/png'});
+                                     }
+
+                                     if (blob) {
+                                         if (blob.type === 'image/jpeg') extension = 'jpg';
+                                         else if (blob.type === 'image/gif') extension = 'gif';
+                                         else if (blob.type === 'image/webp') extension = 'webp';
+                                     }
+                                 } catch (decErr) {
+                                     console.error("Manual decryption failed during export", decErr);
+                                 }
+                             }
+                             
+                             // Fallback to fetch if DB failed (e.g. if ID was wrong but SW handles it?)
+                             if (!blob) {
+                                 const res = await fetch(src);
+                                 if (res.ok) {
+                                     blob = await res.blob();
+                                     if (blob.type === 'image/jpeg') extension = 'jpg';
+                                     else if (blob.type === 'image/gif') extension = 'gif';
+                                     else if (blob.type === 'image/webp') extension = 'webp';
+                                 }
                              }
                          } catch (e) {
-                             console.warn("Failed to fetch image for zip", src);
+                             console.warn("Failed to export image", src, e);
                          }
                     } else if (src && src.startsWith('pixel-keep://image/')) {
                          const id = src.split('pixel-keep://image/')[1];
@@ -3902,10 +3957,41 @@
                         let ext = 'webm';
 
                         if (noteCopy.audio.startsWith('/secure-img/')) {
-                            const res = await fetch(noteCopy.audio);
-                            if (res.ok) {
-                                blob = await res.blob();
-                            }
+                             const id = noteCopy.audio.split('/secure-img/')[1];
+                             try {
+                                 // Try DB first
+                                 const encryptedAudio = await db.get('images', id);
+                                 if (encryptedAudio) {
+                                     try {
+                                         const bytes = CryptoJS.AES.decrypt(encryptedAudio.data, password);
+                                         // Check string format (legacy) or binary
+                                         let isString = false;
+                                         try {
+                                            const str = bytes.toString(CryptoJS.enc.Utf8);
+                                            if (str && str.startsWith('data:audio')) {
+                                                const res = await fetch(str);
+                                                blob = await res.blob();
+                                                isString = true;
+                                            }
+                                         } catch(e) {}
+                                         
+                                         if (!isString) {
+                                             const u8arr = wordArrayToUint8Array(bytes);
+                                             blob = new Blob([u8arr], {type: encryptedAudio.mimeType || 'audio/webm'});
+                                         }
+                                     } catch (decErr) {
+                                         console.error("Audio manual decryption failed", decErr);
+                                     }
+                                 }
+                                 
+                                 // Fallback
+                                 if (!blob) {
+                                     const res = await fetch(noteCopy.audio);
+                                     if (res.ok) blob = await res.blob();
+                                 }
+                             } catch (e) {
+                                 console.warn("Failed to export audio", noteCopy.audio, e);
+                             }
                         } else if (noteCopy.audio.startsWith('data:audio')) {
                             const base64Audio = noteCopy.audio;
                             const byteString = atob(base64Audio.split(',')[1]);
@@ -4164,6 +4250,31 @@
             }
         }
 
+        async function processImportedAudio(note) {
+             if (note.audio && note.audio.startsWith('data:audio')) {
+                 const id = (typeof crypto.randomUUID === 'function') ? crypto.randomUUID() : (Date.now() + '-audio-' + Math.random().toString(36).substr(2, 9));
+                 try {
+                     const res = await fetch(note.audio);
+                     const blob = await res.blob();
+                     const arrayBuffer = await blob.arrayBuffer();
+                     
+                     const wordArray = CryptoJS.lib.WordArray.create(arrayBuffer);
+                     const encrypted = CryptoJS.AES.encrypt(wordArray, password).toString();
+                     
+                     await db.put('images', {
+                        id: id,
+                        data: encrypted,
+                        mimeType: blob.type
+                     });
+                     
+                     note.audio = `/secure-img/${id}`;
+                 } catch (e) {
+                     console.error("Failed to migrate legacy audio", e);
+                 }
+             }
+             return note;
+        }
+
         function importNotes(event) {
             if (!isAuthenticated) return;
             
@@ -4178,11 +4289,12 @@
                 try {
                     const importedNotes = JSON.parse(e.target.result);
                     if (Array.isArray(importedNotes)) {
-                        // Extract images first if any
+                        // Extract images and audio first
                         for (const note of importedNotes) {
                             if (note.content) {
                                 note.content = await extractImagesAndSave(note.content);
                             }
+                            await processImportedAudio(note);
                         }
 
                         const tx = db.transaction(['notes', 'fs_nodes'], 'readwrite');
