@@ -1,0 +1,161 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #4ade80;
+  --color-secondary: #a855f7;
+  --color-text-light: #f0fdf4;
+  --content-font-size: 0.6rem;
+}
+
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background-image:
+      linear-gradient(rgba(30, 27, 75, 0.8), rgba(30, 27, 75, 0.8)),
+      url("data:image/svg+xml,%3Csvg width='6' height='6' viewBox='0 0 6 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23312e81' fill-opacity='0.4' fill-rule='evenodd'%3E%3Cpath d='M5 0h1L0 6V5zM6 5v1H5z'/%3E%3C/g%3E%3C/svg%3E");
+  font-size: var(--content-font-size);
+}
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-size: 1.25rem;
+}
+
+.text-shadow-pixel {
+  text-shadow: 1px 1px 0px #1e1b4b;
+}
+
+/* Custom UI Classes */
+@layer components {
+  .pixel-input {
+    @apply h-14 w-full resize-none border-2 border-border-light px-4 shadow-pixel-container-inset focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary bg-[#f0fdf4] text-black;
+    appearance: none;
+    font-size: var(--content-font-size);
+  }
+
+  .pixel-button {
+    @apply flex items-center justify-center border-4 border-border-dark bg-primary text-background-dark shadow-pixel-container transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#1e1b4b] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none;
+  }
+
+  .pixel-button-secondary {
+    @apply pixel-button bg-secondary text-text-light;
+  }
+
+  .pixel-button-surface {
+    @apply flex size-10 cursor-pointer items-center justify-center border-2 border-border-light bg-surface text-text-light shadow-pixel-btn transition-all hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-pixel-btn-hover active:translate-x-[2px] active:translate-y-[2px] active:shadow-none;
+  }
+
+  .pixel-textarea {
+    @apply w-full border-2 border-border-light px-4 py-3 shadow-pixel-container-inset focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary bg-[#f0fdf4] text-black min-h-[40vh];
+    font-size: var(--content-font-size);
+    font-weight: 400;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: normal;
+  }
+}
+
+.note-content-display {
+  font-size: var(--content-font-size);
+}
+
+/* Theme: Pixel (8-bit) Overrides */
+body.theme-pixel {
+  --font-pixel-body: "VT323", monospace;
+}
+
+body.theme-pixel .pixel-button,
+body.theme-pixel .pixel-button-secondary,
+body.theme-pixel .pixel-button-surface {
+  border-width: 4px !important;
+  border-color: #000 !important;
+  box-shadow: 4px 4px 0px 0px #000 !important;
+  border-radius: 0 !important;
+  text-transform: uppercase;
+}
+
+body.theme-pixel .pixel-button:active,
+body.theme-pixel .pixel-button-secondary:active,
+body.theme-pixel .pixel-button-surface:active {
+  transform: translate(4px, 4px) !important;
+  box-shadow: none !important;
+}
+
+body.theme-pixel .pixel-input,
+body.theme-pixel .pixel-textarea {
+  border: 4px solid #000 !important;
+  box-shadow: inset 4px 4px 0px 0px #e5e5e5 !important;
+  background-color: #fff !important;
+  color: #000 !important;
+}
+
+body.theme-pixel .shadow-pixel-container {
+  box-shadow: 8px 8px 0px 0px #000 !important;
+  border: 4px solid #000 !important;
+}
+
+body.theme-pixel .border-border-light,
+body.theme-pixel .border-border-dark {
+  border-color: #000 !important;
+}
+
+/* Background Options */
+body.bg-solid-black { background-color: #000000 !important; background-image: none !important; }
+body.bg-solid-gray { background-color: #1f2937 !important; background-image: none !important; }
+body.bg-midnight { background-color: #0f172a !important; background-image: none !important; }
+body.bg-forest { background-color: #022c22 !important; background-image: none !important; }
+body.bg-pattern-grid { 
+    background-color: #1e1b4b !important;
+    background-image: linear-gradient(#4f46e5 1px, transparent 1px), linear-gradient(90deg, #4f46e5 1px, transparent 1px) !important;
+    background-size: 20px 20px !important;
+}
+body.bg-pattern-dots {
+    background-color: #1e1b4b !important;
+    background-image: radial-gradient(#4f46e5 1px, transparent 1px) !important;
+    background-size: 20px 20px !important;
+}
+body.bg-pixel-geometric { background-image: url('/nanobanana-output/seamless_pixel_art_pattern_8bit_.png') !important; background-size: auto !important; }
+body.bg-pixel-space { background-image: url('/nanobanana-output/seamless_pixel_art_pattern_8bit__1.png') !important; background-size: auto !important; }
+body.bg-pixel-rpg-grass { background-image: url('/nanobanana-output/seamless_pixel_art_pattern_retro.png') !important; background-size: auto !important; }
+body.bg-pixel-cyber-grid { background-image: url('/nanobanana-output/seamless_pixel_art_pattern_cyber.png') !important; background-size: auto !important; }
+body.bg-pixel-dungeon { background-image: url('/nanobanana-output/seamless_8bit_pixel_art_dungeon_.png') !important; background-size: auto !important; }
+body.bg-pixel-forest-ground { background-image: url('/nanobanana-output/seamless_8bit_pixel_art_forest_g.png') !important; background-size: auto !important; }
+body.bg-pixel-adventure-water { background-image: url('/nanobanana-output/seamless_8bit_pixel_art_water_pa.png') !important; background-size: auto !important; }
+body.bg-pixel-nes-rpg-map { background-image: url('/nanobanana-output/seamless_8bit_pixel_art_rpg_adve.png') !important; background-size: auto !important; }
+
+
+
+/* Font Options */
+body.font-sans { font-family: ui-sans-serif, system-ui, sans-serif !important; }
+body.font-serif { font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif !important; }
+body.font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important; }
+body.font-Inter { font-family: 'Inter', sans-serif !important; }
+body.font-Roboto { font-family: 'Roboto', sans-serif !important; }
+body.font-Open-Sans { font-family: 'Open Sans', sans-serif !important; }
+
+/* Word Wrap */
+body.wrap-mode-standard .pixel-textarea,
+body.wrap-mode-standard .note-content-display {
+    word-break: normal !important; 
+    overflow-wrap: break-word !important; 
+}
+
+body.wrap-mode-break-all .pixel-textarea,
+body.wrap-mode-break-all .note-content-display {
+    word-break: break-all !important; 
+}
+
+/* Compact Mode */
+body.compact-mode .pixel-button, 
+body.compact-mode .pixel-button-secondary,
+body.compact-mode .pixel-input,
+body.compact-mode .nav-button {
+    height: 2.5rem !important;
+    font-size: 0.75rem !important;
+    line-height: 1rem !important;
+}
+
+
