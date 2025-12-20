@@ -18,6 +18,7 @@
     <!-- Additional Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Merriweather:wght@400;700&display=swap" rel="stylesheet">
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="turndown.js"></script>
     <script>
         tailwind.config = {
@@ -435,10 +436,50 @@
         body.theme-pixel .material-symbols-outlined {
             font-size: 1.5rem; 
         }
+
+        /* Loader */
+        #app-loader {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            background-color: rgba(30, 27, 75, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        #app-loader.hidden {
+            display: none;
+        }
+        .loader-text {
+            font-family: "Press Start 2P", cursive;
+            color: #4ade80; /* Primary */
+            font-size: 1.5rem;
+            text-transform: uppercase;
+            text-shadow: 4px 4px 0px #000;
+        }
+        .bounce {
+            display: inline-block;
+            animation: bounce-anim 1.4s infinite ease-in-out both;
+        }
+        .bounce-1 { animation-delay: -0.32s; }
+        .bounce-2 { animation-delay: -0.16s; }
+
+        @keyframes bounce-anim {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
     </style>
 </head>
 
 <body class="bg-background-dark font-display text-text-light antialiased">
+
+    <div id="app-loader" class="hidden">
+        <div class="loader-text">
+            LOADING<span class="bounce bounce-1">.</span><span class="bounce bounce-2">.</span><span class="bounce bounce-3">.</span>
+        </div>
+    </div>
 
     <div id="unlock-screen" class="flex min-h-screen flex-col items-center justify-center p-4">
         <div class="flex flex-col items-center gap-4 rounded border-2 border-border-light bg-surface p-8 shadow-pixel-container">
@@ -894,7 +935,13 @@
     <script src="crypto-js.min.js"></script>
 
     <script type="module">
-        const { openDB } = idb;
+        window.onerror = function(msg, url, line, col, error) {
+            alert("Global Error: " + msg + "\nLine: " + line);
+            console.error("Global Error", error);
+            return false;
+        };
+
+        // const { openDB } = idb;
 
         // --- State ---
         let db;
@@ -967,13 +1014,23 @@
         let mediaRecorder = null;
         let audioChunks = [];
         let isRecording = false;
-        let currentAudioBase64 = null;
+        let currentAudioBase64 = null; // Legacy support & optimized URL holder
+        let currentAudioBlob = null; // New binary data holder
 
         // --- DOM Elements ---
         const unlockScreen = document.getElementById('unlock-screen');
         const appContainer = document.getElementById('app-container');
         const passwordInput = document.getElementById('password-input');
         const unlockButton = document.getElementById('unlock-button');
+        const appLoader = document.getElementById('app-loader');
+
+        function showLoader() {
+            appLoader.classList.remove('hidden');
+        }
+
+        function hideLoader() {
+            appLoader.classList.add('hidden');
+        }
         
         const pages = document.querySelectorAll('.page');
         const navButtons = document.querySelectorAll('.nav-button');
@@ -1079,30 +1136,38 @@
             for (const img of images) {
                 const src = img.getAttribute('src');
 
-                // Only process new Data URLs (freshly pasted/uploaded)
-                if (src && src.startsWith('data:image')) {
+                // Process Data URLs (pasted) OR Blob URLs (from new optimizer)
+                if (src && (src.startsWith('data:image') || src.startsWith('blob:'))) {
                     const id = (typeof crypto.randomUUID === 'function') ? crypto.randomUUID() : (Date.now() + '-' + Math.random().toString(36).substr(2, 9));
 
-                    // 1. Convert Data URL to Blob (Binary)
-                    const res = await fetch(src);
-                    const blob = await res.blob();
-                    const arrayBuffer = await blob.arrayBuffer();
+                    try {
+                        // 1. Convert to Blob (Binary)
+                        const res = await fetch(src);
+                        const blob = await res.blob();
+                        const arrayBuffer = await blob.arrayBuffer();
 
-                    // 2. Encrypt Binary Data
-                    // Note: CryptoJS works on WordArrays. We convert ArrayBuffer -> WordArray
-                    const wordArray = CryptoJS.lib.WordArray.create(arrayBuffer);
-                    const encrypted = CryptoJS.AES.encrypt(wordArray, password).toString();
+                        // 2. Encrypt Binary Data
+                        const wordArray = CryptoJS.lib.WordArray.create(arrayBuffer);
+                        const encrypted = CryptoJS.AES.encrypt(wordArray, password).toString();
 
-                    // 3. Store encrypted string + MIME type
-                    await db.put('images', {
-                        id: id,
-                        data: encrypted,
-                        mimeType: blob.type
-                    });
+                        // 3. Store encrypted data
+                        await db.put('images', {
+                            id: id,
+                            data: encrypted,
+                            mimeType: blob.type
+                        });
 
-                    // 4. Set src to virtual path
-                    img.src = `/secure-img/${id}`;
-                    modified = true;
+                        // 4. Set src to virtual path
+                        img.src = `/secure-img/${id}`;
+                        modified = true;
+
+                        // Cleanup object URL if it was a blob
+                        if (src.startsWith('blob:')) {
+                            URL.revokeObjectURL(src);
+                        }
+                    } catch (e) {
+                        console.error("Failed to process image:", e);
+                    }
                 }
             }
             return modified ? doc.body.innerHTML : htmlContent;
@@ -1163,7 +1228,7 @@
 
         // --- Database Setup ---
         async function initDB() {
-            db = await openDB('PixelPWADatabase', 3, {
+            db = await idb.openDB('PixelPWADatabase', 3, {
                 upgrade(db) {
                     if (!db.objectStoreNames.contains('notes')) {
                         db.createObjectStore('notes', { keyPath: 'id' });
@@ -1186,7 +1251,7 @@
 
         // --- Authentication ---
         function sendKeyToServiceWorker(key) {
-            if (navigator.serviceWorker.controller) {
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
                 navigator.serviceWorker.controller.postMessage({
                     type: 'SET_PASSWORD',
                     password: key
@@ -1195,39 +1260,65 @@
         }
 
         // Ensure key is resent if page reloads and SW requests it
-        navigator.serviceWorker.addEventListener('message', (event) => {
-            if (event.data && event.data.type === 'REQUEST_PASSWORD' && isAuthenticated) {
-                sendKeyToServiceWorker(password);
-            }
-        });
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.addEventListener('message', (event) => {
+                if (event.data && event.data.type === 'REQUEST_PASSWORD' && isAuthenticated) {
+                    sendKeyToServiceWorker(password);
+                }
+            });
+        }
 
         async function handleUnlock() {
-            const enteredPassword = passwordInput.value.trim();
-            if (!enteredPassword) {
-                alert('Please enter a password.');
-                return;
-            }
+            try {
+                if (!db) {
+                    alert("Database is initializing... please wait a moment.");
+                    // Try to init again if missing
+                    try { await initDB(); } catch(e) { 
+                        alert("Database init failed: " + e.message); 
+                        return;
+                    }
+                }
 
-            const check = await db.get('meta', 'password_check');
-            
-            if (check) {
-                if (decrypt(check.value, enteredPassword) === 'ok') {
+                const enteredPassword = passwordInput.value.trim();
+                if (!enteredPassword) {
+                    alert('Please enter a password.');
+                    return;
+                }
+
+                const check = await db.get('meta', 'password_check');
+                
+                if (check) {
+                    if (decrypt(check.value, enteredPassword) === 'ok') {
+                        password = enteredPassword;
+                        isAuthenticated = true;
+                        sendKeyToServiceWorker(password); // NEW: Send password to SW
+                        try {
+                            await runMigrationV2();
+                        } catch (err) {
+                            console.error("Migration failed:", err);
+                            alert("Migration failed: " + err.message);
+                        }
+                        startApp();
+                    } else {
+                        alert('Wrong password.');
+                    }
+                } else {
+                    const verification = { key: 'password_check', value: encrypt('ok', enteredPassword) };
+                    await db.put('meta', verification);
                     password = enteredPassword;
                     isAuthenticated = true;
                     sendKeyToServiceWorker(password); // NEW: Send password to SW
-                    await runMigrationV2();
+                    try {
+                        await runMigrationV2();
+                    } catch (err) {
+                        console.error("Migration failed:", err);
+                        alert("Migration failed: " + err.message);
+                    }
                     startApp();
-                } else {
-                    alert('Wrong password.');
                 }
-            } else {
-                const verification = { key: 'password_check', value: encrypt('ok', enteredPassword) };
-                await db.put('meta', verification);
-                password = enteredPassword;
-                isAuthenticated = true;
-                sendKeyToServiceWorker(password); // NEW: Send password to SW
-                await runMigrationV2();
-                startApp();
+            } catch (e) {
+                console.error("Login error:", e);
+                alert("Login error: " + e.message);
             }
         }
 
@@ -1277,6 +1368,14 @@
         function startApp() {
             unlockScreen.style.display = 'none';
             appContainer.style.display = 'flex';
+
+            if (!window.isSecureContext) {
+                const warning = document.createElement('div');
+                warning.className = 'bg-danger text-text-light text-center p-2 text-xs font-bold uppercase';
+                warning.innerHTML = '<span class="material-symbols-outlined align-bottom text-sm mr-1">warning</span> Insecure Connection! Media & Backup may fail. Use HTTPS or Localhost.';
+                appContainer.insertBefore(warning, appContainer.firstChild);
+            }
+
             setupEventListeners();
             setupDragAndDrop();
             setupAudioListeners(); 
@@ -1346,16 +1445,11 @@
                 return;
             }
 
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                currentAudioBase64 = event.target.result;
-                updateAudioUI(currentAudioBase64);
-            };
-            reader.onerror = (err) => {
-                console.error("Error reading audio file:", err);
-                alert("Failed to read audio file.");
-            };
-            reader.readAsDataURL(file);
+            currentAudioBlob = file;
+            currentAudioBase64 = URL.createObjectURL(file);
+            activeObjectUrls.push(currentAudioBase64);
+            updateAudioUI(currentAudioBase64);
+
             e.target.value = ''; // Reset input so same file can be selected again if needed
         }
 
@@ -1379,12 +1473,11 @@
 
                 mediaRecorder.onstop = async () => {
                     const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                        currentAudioBase64 = reader.result;
-                        updateAudioUI(currentAudioBase64);
-                    };
-                    reader.readAsDataURL(audioBlob);
+
+                    currentAudioBlob = audioBlob;
+                    currentAudioBase64 = URL.createObjectURL(audioBlob);
+                    activeObjectUrls.push(currentAudioBase64);
+                    updateAudioUI(currentAudioBase64);
                     
                     stream.getTracks().forEach(track => track.stop());
                 };
@@ -1421,6 +1514,7 @@
         function deleteAudio() {
             if(confirm("Remove audio recording?")) {
                 currentAudioBase64 = null;
+                currentAudioBlob = null;
                 updateAudioUI(null);
             }
         }
@@ -1974,6 +2068,7 @@
                     
                     // Load Audio
                     currentAudioBase64 = note.audio || null;
+                    currentAudioBlob = null;
                     updateAudioUI(currentAudioBase64);
 
                     noteEditDelete.classList.remove('hidden');
@@ -1983,6 +2078,7 @@
                 noteEditId.value = '';
                 noteEditContent.innerHTML = '';
                 currentAudioBase64 = null;
+                currentAudioBlob = null;
                 updateAudioUI(null);
                 noteEditDelete.classList.add('hidden');
             }
@@ -2016,6 +2112,8 @@
 
         async function saveNote(e) {
             e.preventDefault();
+            showLoader();
+            try {
             const isNewNote = !noteEditId.value;
             const id = isNewNote ? Date.now() : Number(noteEditId.value);
             const tags = noteEditTags.value.split(',').map(t => t.trim()).filter(t => t.length > 0);
@@ -2038,12 +2136,34 @@
             // Extract images and save them to 'images' store, replacing with placeholders
             const processedContent = await extractImagesAndSave(noteEditContent.innerHTML);
 
+            // Process Audio
+            let processedAudio = currentAudioBase64;
+            if (currentAudioBlob) {
+                const audioId = (typeof crypto.randomUUID === 'function') ? crypto.randomUUID() : (Date.now() + '-audio-' + Math.random().toString(36).substr(2, 9));
+                try {
+                    const arrayBuffer = await currentAudioBlob.arrayBuffer();
+                    const wordArray = CryptoJS.lib.WordArray.create(arrayBuffer);
+                    const encrypted = CryptoJS.AES.encrypt(wordArray, password).toString();
+
+                    await db.put('images', {
+                        id: audioId,
+                        data: encrypted,
+                        mimeType: currentAudioBlob.type
+                    });
+
+                    processedAudio = `/secure-img/${audioId}`;
+                } catch (e) {
+                    console.error("Audio encryption failed", e);
+                    throw new Error("Audio processing failed");
+                }
+            }
+
             const note = {
                 id: id,
                 title: noteEditTitle.value,
                 content: processedContent,
                 tags: tags,
-                audio: currentAudioBase64, // Save audio
+                audio: processedAudio, // Save audio
                 updatedAt: new Date().toISOString(),
                 order: order
             };
@@ -2077,6 +2197,12 @@
             
             noteEditForm.reset();
             location.hash = `#page-notes-list/${currentNotesFolder}`;
+            } catch (err) {
+                console.error("Error saving note:", err);
+                alert("Failed to save note.");
+            } finally {
+                hideLoader();
+            }
         }
 
         async function deleteNote(nodeId) {
@@ -2367,21 +2493,62 @@
         }
 
         // --- Image Handling ---
+        async function compressImage(file) {
+            const MAX_WIDTH = 1200;
+            const QUALITY = 0.8;
+
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.src = URL.createObjectURL(file);
+                img.onload = () => {
+                    URL.revokeObjectURL(img.src);
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > MAX_WIDTH) {
+                        height = Math.round(height * (MAX_WIDTH / width));
+                        width = MAX_WIDTH;
+                    }
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    canvas.toBlob((blob) => {
+                        if (blob) resolve(blob);
+                        else reject(new Error("Compression failed"));
+                    }, 'image/jpeg', QUALITY);
+                };
+                img.onerror = reject;
+            });
+        }
+
         function addImageFromGallery() {
             const input = document.createElement('input');
             input.type = 'file';
             input.accept = 'image/*';
-            input.onchange = e => {
+            input.onchange = async e => {
                 const file = e.target.files[0];
-                const reader = new FileReader();
-                reader.onload = readerEvent => {
-                    const content = readerEvent.target.result;
+                if (!file) return;
+
+                try {
+                    showLoader();
+                    const compressedBlob = await compressImage(file);
+                    const url = URL.createObjectURL(compressedBlob);
+                    activeObjectUrls.push(url);
+
                     const editor = document.getElementById('note-edit-content');
-                    const imgTag = `<img src="${content}" class="w-full">`;
+                    const imgTag = `<img src="${url}" class="w-full">`;
                     editor.focus();
                     document.execCommand('insertHTML', false, imgTag);
+                } catch (err) {
+                    console.error("Image processing failed:", err);
+                    alert("Failed to process image.");
+                } finally {
+                    hideLoader();
                 }
-                reader.readAsDataURL(file);
             }
             input.click();
         }
@@ -2403,23 +2570,37 @@
         function captureImage() {
             const cameraModal = document.getElementById('camera-modal');
             const video = document.getElementById('camera-stream');
-            const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const context = canvas.getContext('2d');
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const dataUrl = canvas.toDataURL('image/png');
-            
-            const editor = document.getElementById('note-edit-content');
-            const imgTag = `<img src="${dataUrl}" class="w-full">`;
-            editor.focus();
-            document.execCommand('insertHTML', false, imgTag);
 
-            // Stop the stream and hide the modal
-            const stream = video.srcObject;
-            const tracks = stream.getTracks();
-            tracks.forEach(track => track.stop());
-            cameraModal.classList.add('hidden');
+            const MAX_WIDTH = 1200;
+            let width = video.videoWidth;
+            let height = video.videoHeight;
+
+            if (width > MAX_WIDTH) {
+                height = Math.round(height * (MAX_WIDTH / width));
+                width = MAX_WIDTH;
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, width, height);
+            
+            canvas.toBlob(blob => {
+                 const url = URL.createObjectURL(blob);
+                 activeObjectUrls.push(url);
+
+                 const editor = document.getElementById('note-edit-content');
+                 const imgTag = `<img src="${url}" class="w-full">`;
+                 editor.focus();
+                 document.execCommand('insertHTML', false, imgTag);
+
+                 // Stop the stream and hide the modal
+                 const stream = video.srcObject;
+                 const tracks = stream.getTracks();
+                 tracks.forEach(track => track.stop());
+                 cameraModal.classList.add('hidden');
+            }, 'image/jpeg', 0.8);
         }
 
         function closeCamera() {
@@ -3656,9 +3837,232 @@
         }
 
         // --- Import/Export ---
+        function wordArrayToUint8Array(wordArray) {
+            const len = wordArray.sigBytes;
+            const words = wordArray.words;
+            const u8 = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                u8[i] = (words[i >>> 2] >>> (24 - (i % 4) * 8)) & 0xff;
+            }
+            return u8;
+        }
+
+        async function createZipExport(notes, format) {
+            const zip = new JSZip();
+            const mediaFolder = zip.folder("media");
+            const processedNotes = [];
+            const usedFilenames = new Set();
+
+            for (const note of notes) {
+                const noteCopy = JSON.parse(JSON.stringify(note));
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(noteCopy.content, 'text/html');
+                const images = doc.querySelectorAll('img');
+
+                for (const img of images) {
+                    const src = img.getAttribute('src');
+                    let blob = null;
+                    let extension = 'png';
+
+                    if (src && src.startsWith('/secure-img/')) {
+                         const id = src.split('/secure-img/')[1];
+                         try {
+                             // Try direct DB access first (Reliable)
+                             const encryptedImage = await db.get('images', id);
+                             if (encryptedImage) {
+                                 // Decrypt manually
+                                 try {
+                                     const bytes = CryptoJS.AES.decrypt(encryptedImage.data, password);
+                                     
+                                     // Check if it was legacy string data or new binary data
+                                     // We try to convert to string first to check if it starts with data:image
+                                     try {
+                                        const str = bytes.toString(CryptoJS.enc.Utf8);
+                                        if (str && str.startsWith('data:image')) {
+                                            const res = await fetch(str);
+                                            blob = await res.blob();
+                                        }
+                                     } catch(e) {}
+
+                                     // If not blob yet, treat as binary
+                                     if (!blob) {
+                                         const u8arr = wordArrayToUint8Array(bytes);
+                                         blob = new Blob([u8arr], {type: encryptedImage.mimeType || 'image/png'});
+                                     }
+
+                                     if (blob) {
+                                         if (blob.type === 'image/jpeg') extension = 'jpg';
+                                         else if (blob.type === 'image/gif') extension = 'gif';
+                                         else if (blob.type === 'image/webp') extension = 'webp';
+                                     }
+                                 } catch (decErr) {
+                                     console.error("Manual decryption failed during export", decErr);
+                                 }
+                             }
+                             
+                             // Fallback to fetch if DB failed (e.g. if ID was wrong but SW handles it?)
+                             if (!blob) {
+                                 const res = await fetch(src);
+                                 if (res.ok) {
+                                     blob = await res.blob();
+                                     if (blob.type === 'image/jpeg') extension = 'jpg';
+                                     else if (blob.type === 'image/gif') extension = 'gif';
+                                     else if (blob.type === 'image/webp') extension = 'webp';
+                                 }
+                             }
+                         } catch (e) {
+                             console.warn("Failed to export image", src, e);
+                         }
+                    } else if (src && src.startsWith('pixel-keep://image/')) {
+                         const id = src.split('pixel-keep://image/')[1];
+                         const encryptedImage = await db.get('images', id);
+                         if (encryptedImage) {
+                             try {
+                                const decrypted = decrypt(encryptedImage.data, password);
+                                if (decrypted && decrypted.content) {
+                                    const byteString = atob(decrypted.content.split(',')[1]);
+                                    const mimeString = decrypted.content.split(',')[0].split(':')[1].split(';')[0];
+                                    const ab = new ArrayBuffer(byteString.length);
+                                    const ia = new Uint8Array(ab);
+                                    for (let i = 0; i < byteString.length; i++) {
+                                        ia[i] = byteString.charCodeAt(i);
+                                    }
+                                    blob = new Blob([ab], {type: mimeString});
+                                    if (mimeString === 'image/jpeg') extension = 'jpg';
+                                    else if (mimeString === 'image/gif') extension = 'gif';
+                                    else if (mimeString === 'image/webp') extension = 'webp';
+                                }
+                             } catch (e) {}
+                         }
+                    }
+
+                    if (blob) {
+                        const id = src.split('/').pop().replace('pixel-keep://image/', '');
+                        let filename = `${id}.${extension}`;
+                        let counter = 1;
+                        while(usedFilenames.has(filename)) {
+                            filename = `${id}_${counter}.${extension}`;
+                            counter++;
+                        }
+                        usedFilenames.add(filename);
+
+                        mediaFolder.file(filename, blob);
+                        img.setAttribute('src', `media/${filename}`);
+                    }
+                }
+
+                if (noteCopy.audio) {
+                    try {
+                        let blob = null;
+                        let ext = 'webm';
+
+                        if (noteCopy.audio.startsWith('/secure-img/')) {
+                             const id = noteCopy.audio.split('/secure-img/')[1];
+                             try {
+                                 // Try DB first
+                                 const encryptedAudio = await db.get('images', id);
+                                 if (encryptedAudio) {
+                                     try {
+                                         const bytes = CryptoJS.AES.decrypt(encryptedAudio.data, password);
+                                         // Check string format (legacy) or binary
+                                         let isString = false;
+                                         try {
+                                            const str = bytes.toString(CryptoJS.enc.Utf8);
+                                            if (str && str.startsWith('data:audio')) {
+                                                const res = await fetch(str);
+                                                blob = await res.blob();
+                                                isString = true;
+                                            }
+                                         } catch(e) {}
+                                         
+                                         if (!isString) {
+                                             const u8arr = wordArrayToUint8Array(bytes);
+                                             blob = new Blob([u8arr], {type: encryptedAudio.mimeType || 'audio/webm'});
+                                         }
+                                     } catch (decErr) {
+                                         console.error("Audio manual decryption failed", decErr);
+                                     }
+                                 }
+                                 
+                                 // Fallback
+                                 if (!blob) {
+                                     const res = await fetch(noteCopy.audio);
+                                     if (res.ok) blob = await res.blob();
+                                 }
+                             } catch (e) {
+                                 console.warn("Failed to export audio", noteCopy.audio, e);
+                             }
+                        } else if (noteCopy.audio.startsWith('data:audio')) {
+                            const base64Audio = noteCopy.audio;
+                            const byteString = atob(base64Audio.split(',')[1]);
+                            const mimeString = base64Audio.split(',')[0].split(':')[1].split(';')[0];
+                            const ab = new ArrayBuffer(byteString.length);
+                            const ia = new Uint8Array(ab);
+                            for (let i = 0; i < byteString.length; i++) {
+                                ia[i] = byteString.charCodeAt(i);
+                            }
+                            blob = new Blob([ab], {type: mimeString});
+                        }
+
+                        if (blob) {
+                            if (blob.type.includes('mp3')) ext = 'mp3';
+                            else if (blob.type.includes('wav')) ext = 'wav';
+
+                            const filename = `audio_${noteCopy.id}.${ext}`;
+                            mediaFolder.file(filename, blob);
+                            noteCopy.audio = `media/${filename}`;
+                        }
+                    } catch (e) {
+                        console.warn("Failed to process audio for zip", e);
+                    }
+                }
+
+                noteCopy.content = doc.body.innerHTML;
+                processedNotes.push(noteCopy);
+            }
+
+            let contentString = "";
+            let mainFilename = "notes.json";
+
+            if (format === 'json') {
+                contentString = JSON.stringify(processedNotes, null, 2);
+            } else if (format === 'md') {
+                const turndownService = new TurndownService();
+                contentString = processedNotes.map(n => {
+                    let md = `# ${n.title}\n\n`;
+                    if (n.audio && n.audio.startsWith('media/')) {
+                        md += `[Audio Note](${n.audio})\n\n`;
+                    }
+                    md += turndownService.turndown(n.content);
+                    return md;
+                }).join('\n\n---\n\n');
+                mainFilename = "notes.md";
+            } else if (format === 'txt') {
+                 contentString = processedNotes.map(n => `# ${n.title}\n\n${stripHTML(n.content)}`).join('\n\n---\n\n');
+                 mainFilename = "notes.txt";
+            }
+
+            zip.file(mainFilename, contentString);
+            
+            const zipBlob = await zip.generateAsync({type:"blob"});
+            const url = URL.createObjectURL(zipBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `pixel-notes-export-${new Date().toISOString().slice(0,10)}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
         async function exportNotes() {
             if (!isAuthenticated) return;
 
+            const exportType = prompt("Export type: 'json' (Backup) or 'zip' (Archive with Media)?", "json")?.toLowerCase();
+            if (!exportType || (exportType !== 'json' && exportType !== 'zip')) return;
+
+            showLoader();
+            try {
             const encryptedNotes = await db.getAll('notes');
             const notes = encryptedNotes.map(n => decrypt(n.data, password)).filter(Boolean);
 
@@ -3667,22 +4071,48 @@
                 return;
             }
 
-            // Re-embed images for export
-            for (const note of notes) {
-                note.content = await reembedImagesForExport(note.content);
-            }
+            if (exportType === 'zip') {
+                await createZipExport(notes, 'json');
+            } else {
+                // Re-embed images and audio for export
+                for (const note of notes) {
+                    note.content = await reembedImagesForExport(note.content);
 
-            const jsonString = JSON.stringify(notes, null, 2);
-            const blob = new Blob([jsonString], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `pixel-notes-export-${new Date().toISOString().slice(0,10)}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+                    if (note.audio && note.audio.startsWith('/secure-img/')) {
+                        try {
+                            const res = await fetch(note.audio);
+                            if (res.ok) {
+                                const blob = await res.blob();
+                                const reader = new FileReader();
+                                note.audio = await new Promise((resolve) => {
+                                    reader.onloadend = () => resolve(reader.result);
+                                    reader.readAsDataURL(blob);
+                                });
+                            }
+                        } catch (e) {
+                             console.warn("Failed to re-embed audio", e);
+                        }
+                    }
+                }
+
+                const jsonString = JSON.stringify(notes, null, 2);
+                const blob = new Blob([jsonString], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `pixel-notes-export-${new Date().toISOString().slice(0,10)}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+            } catch (err) {
+                console.error("Export failed", err);
+                alert("Export failed");
+            } finally {
+                hideLoader();
+            }
         }
 
         async function getAllNotesInFolder(folderId, allNodes) {
@@ -3749,13 +4179,38 @@
                 return;
             }
 
-            // Re-embed images for export
+            // Re-embed images and audio for export
             for (const note of notesToExport) {
                 note.content = await reembedImagesForExport(note.content);
+
+                if (note.audio && note.audio.startsWith('/secure-img/')) {
+                    try {
+                        const res = await fetch(note.audio);
+                        if (res.ok) {
+                            const blob = await res.blob();
+                            const reader = new FileReader();
+                            note.audio = await new Promise((resolve) => {
+                                reader.onloadend = () => resolve(reader.result);
+                                reader.readAsDataURL(blob);
+                            });
+                        }
+                    } catch (e) {
+                         console.warn("Failed to re-embed audio", e);
+                    }
+                }
             }
 
             const format = prompt("Export format (json, txt, or md):")?.toLowerCase();
             if (!format) return;
+
+            const useZip = confirm("Compress to ZIP with media files included?");
+            showLoader();
+            try {
+
+            if (useZip) {
+                 await createZipExport(notesToExport, format);
+                 return;
+            }
 
             let content;
             let fileExtension;
@@ -3790,6 +4245,34 @@
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
+            } finally {
+                hideLoader();
+            }
+        }
+
+        async function processImportedAudio(note) {
+             if (note.audio && note.audio.startsWith('data:audio')) {
+                 const id = (typeof crypto.randomUUID === 'function') ? crypto.randomUUID() : (Date.now() + '-audio-' + Math.random().toString(36).substr(2, 9));
+                 try {
+                     const res = await fetch(note.audio);
+                     const blob = await res.blob();
+                     const arrayBuffer = await blob.arrayBuffer();
+                     
+                     const wordArray = CryptoJS.lib.WordArray.create(arrayBuffer);
+                     const encrypted = CryptoJS.AES.encrypt(wordArray, password).toString();
+                     
+                     await db.put('images', {
+                        id: id,
+                        data: encrypted,
+                        mimeType: blob.type
+                     });
+                     
+                     note.audio = `/secure-img/${id}`;
+                 } catch (e) {
+                     console.error("Failed to migrate legacy audio", e);
+                 }
+             }
+             return note;
         }
 
         function importNotes(event) {
@@ -3800,16 +4283,18 @@
                 return;
             }
 
+            showLoader();
             const reader = new FileReader();
             reader.onload = async function(e) {
                 try {
                     const importedNotes = JSON.parse(e.target.result);
                     if (Array.isArray(importedNotes)) {
-                        // Extract images first if any
+                        // Extract images and audio first
                         for (const note of importedNotes) {
                             if (note.content) {
                                 note.content = await extractImagesAndSave(note.content);
                             }
+                            await processImportedAudio(note);
                         }
 
                         const tx = db.transaction(['notes', 'fs_nodes'], 'readwrite');
@@ -3844,7 +4329,15 @@
                 } catch (error) {
                     alert("Error reading or parsing the file.");
                     console.error("Import error:", error);
+                } finally {
+                    hideLoader();
+                    event.target.value = '';
                 }
+            };
+            reader.onerror = () => {
+                hideLoader();
+                alert("File read error");
+                event.target.value = '';
             };
             reader.readAsText(file);
         }
@@ -4003,92 +4496,59 @@
 
         // --- App Initialization ---
         async function main() {
-            await initDB();
-            loadSettings();
-            
-            unlockButton.addEventListener('click', handleUnlock);
-            passwordInput.addEventListener('keyup', (e) => {
-                if (e.key === 'Enter') {
-                    handleUnlock();
-                }
-            });
-
-            // Settings Listeners
-            document.getElementById('setting-theme').addEventListener('change', (e) => {
-                const themeName = e.target.value;
-                settings.currentTheme = themeName;
+            // 1. Attach Listeners Immediately (so button works even if DB hangs)
+            try {
+                unlockButton.addEventListener('click', handleUnlock);
+                passwordInput.addEventListener('keyup', (e) => {
+                    if (e.key === 'Enter') {
+                        handleUnlock();
+                    }
+                });
                 
-                if (themes[themeName]) {
-                    const theme = themes[themeName];
-                    settings.font = theme.font;
-                    settings.bg = theme.bg;
-                    settings.primaryColor = theme.primaryColor;
-                    settings.secondaryColor = theme.secondaryColor;
-                    settings.textColor = theme.textColor;
-                    settings.lineHeight = theme.lineHeight;
-                    settings.compact = theme.compact;
-                    settings.wordWrap = theme.wordWrap;
-                    
-                    // Refresh UI to show new values
-                    initSettingsUI();
-                }
+                // Other listeners can wait or be here, but login is critical
+                document.getElementById('setting-theme').addEventListener('change', (e) => {
+                    const themeName = e.target.value;
+                    settings.currentTheme = themeName;
+                    if (themes[themeName]) {
+                        const theme = themes[themeName];
+                        Object.assign(settings, theme);
+                        initSettingsUI();
+                    }
+                    saveSettings();
+                });
+                // ... (rest of listeners are fine to stay or move, but for minimal diff we keep the structure simple)
+            } catch (e) {
+                console.error("Error attaching listeners", e);
+            }
+
+            // 2. Initialize App
+            try {
+                loadSettings(); // Settings don't need DB, load them first for UI
+                await initDB();
                 
-                saveSettings();
-            });
+                // Rest of the listeners (copying the block from previous code to ensure they are attached)
+                document.getElementById('setting-primary-color').addEventListener('input', (e) => { settings.primaryColor = e.target.value; saveSettings(); });
+                document.getElementById('setting-secondary-color').addEventListener('input', (e) => { settings.secondaryColor = e.target.value; saveSettings(); });
+                document.getElementById('setting-text-color').addEventListener('change', (e) => { settings.textColor = e.target.value; saveSettings(); });
+                document.getElementById('setting-scale').addEventListener('input', (e) => { settings.scale = e.target.value; document.getElementById('setting-scale-value').textContent = `${settings.scale}%`; saveSettings(); });
+                document.getElementById('setting-font').addEventListener('change', (e) => { settings.font = e.target.value; saveSettings(); });
+                document.getElementById('setting-bg').addEventListener('change', (e) => { settings.bg = e.target.value; saveSettings(); });
+                document.getElementById('setting-line-height').addEventListener('change', (e) => { settings.lineHeight = e.target.value; saveSettings(); });
+                document.getElementById('setting-compact').addEventListener('change', (e) => { settings.compact = e.target.checked; saveSettings(); });
+                document.getElementById('setting-word-wrap').addEventListener('change', (e) => { settings.wordWrap = (e.target.value === 'true'); saveSettings(); });
+                document.getElementById('setting-content-font-size').addEventListener('input', (e) => { settings.contentFontSize = e.target.value; document.getElementById('setting-content-font-size-value').textContent = `${settings.contentFontSize}%`; saveSettings(); });
+                document.getElementById('export-button').addEventListener('click', exportNotes);
+                document.getElementById('export-selected-button').addEventListener('click', exportSelectedNotes);
+                document.getElementById('delete-selected-button').addEventListener('click', deleteSelectedItems);
+                document.getElementById('move-out-button').addEventListener('click', moveOutSelectedItems);
+                document.getElementById('import-button').addEventListener('click', () => { document.getElementById('import-file-input').click(); });
+                document.getElementById('import-file-input').addEventListener('change', importNotes);
 
-            document.getElementById('setting-primary-color').addEventListener('input', (e) => {
-                settings.primaryColor = e.target.value;
-                // Customizing breaks the "theme" link effectively, but we keep the name for now
-                saveSettings();
-            });
-            document.getElementById('setting-secondary-color').addEventListener('input', (e) => {
-                settings.secondaryColor = e.target.value;
-                saveSettings();
-            });
-            document.getElementById('setting-text-color').addEventListener('change', (e) => {
-                settings.textColor = e.target.value;
-                saveSettings();
-            });
-            document.getElementById('setting-scale').addEventListener('input', (e) => {
-                settings.scale = e.target.value;
-                document.getElementById('setting-scale-value').textContent = `${settings.scale}%`;
-                saveSettings();
-            });
-            document.getElementById('setting-font').addEventListener('change', (e) => {
-                settings.font = e.target.value;
-                saveSettings();
-            });
-            document.getElementById('setting-bg').addEventListener('change', (e) => {
-                settings.bg = e.target.value;
-                saveSettings();
-            });
-            document.getElementById('setting-line-height').addEventListener('change', (e) => {
-                settings.lineHeight = e.target.value;
-                saveSettings();
-            });
-            document.getElementById('setting-compact').addEventListener('change', (e) => {
-                settings.compact = e.target.checked;
-                saveSettings();
-            });
-            document.getElementById('setting-word-wrap').addEventListener('change', (e) => {
-                settings.wordWrap = (e.target.value === 'true');
-                saveSettings();
-            });
-            document.getElementById('setting-content-font-size').addEventListener('input', (e) => {
-                settings.contentFontSize = e.target.value;
-                document.getElementById('setting-content-font-size-value').textContent = `${settings.contentFontSize}%`;
-                saveSettings();
-            });
-            document.getElementById('export-button').addEventListener('click', exportNotes);
-            document.getElementById('export-selected-button').addEventListener('click', exportSelectedNotes);
-            document.getElementById('delete-selected-button').addEventListener('click', deleteSelectedItems);
-            document.getElementById('move-out-button').addEventListener('click', moveOutSelectedItems);
-            document.getElementById('import-button').addEventListener('click', () => {
-                document.getElementById('import-file-input').click();
-            });
-            document.getElementById('import-file-input').addEventListener('change', importNotes);
-
-            registerServiceWorker();
+                registerServiceWorker();
+            } catch (e) {
+                console.error("App Initialization Error:", e);
+                alert("Critical Error: App failed to initialize. " + e.message);
+            }
         }
 
         main();
