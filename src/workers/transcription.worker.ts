@@ -41,7 +41,7 @@ self.addEventListener('message', async (event) => {
             const output = await p(audio, {
                 chunk_length_s: 30,
                 stride_length_s: 5,
-                callback_function: (beams: any) => {
+                callback_function: () => {
                     // Optional: could send partial results here
                 }
             });
