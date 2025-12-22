@@ -7,11 +7,11 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Store & Database Updates' (Protocol in workflow.md)
 
 ## Phase 2: Folder Renaming UI
-- [ ] Task: Implement "Rename" UI flow in Sidebar.
-    - [ ] Sub-task: Update `Sidebar.tsx` selection mode to show a "RENAME" button when exactly one folder is selected.
-    - [ ] Sub-task: Create state for `isRenameModalOpen` and `folderToRename`.
-    - [ ] Sub-task: Reuse `PixelModal` to prompt for the new name.
-    - [ ] Sub-task: Connect the modal submission to `renameNode`.
+- [x] Task: Implement "Rename" UI flow in Sidebar. [ff63e62]
+    - [x] Sub-task: Update `Sidebar.tsx` selection mode to show a "RENAME" button when exactly one folder is selected.
+    - [x] Sub-task: Create state for `isRenameModalOpen` and `folderToRename`.
+    - [x] Sub-task: Reuse `PixelModal` to prompt for the new name.
+    - [x] Sub-task: Connect the modal submission to `renameNode`.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Folder Renaming UI' (Protocol in workflow.md)
 
 ## Phase 3: Folder Reordering (Drag-and-Drop)
