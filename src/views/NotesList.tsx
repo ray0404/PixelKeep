@@ -49,8 +49,7 @@ const SortableNoteItem = ({ id, ...props }: any) => {
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="touch-none">
-       {/* Note: touch-none is crucial for touch drag without scrolling page */}
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
       <NoteItem {...props} />
     </div>
   );
