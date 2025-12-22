@@ -129,6 +129,14 @@ export const Settings: React.FC = () => {
             />
           </div>
 
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-text-light uppercase">Include Title in Copy</span>
+            <PixelCheckbox 
+              checked={settings.includeTitleInCopy}
+              onChange={(e) => settings.setSetting('includeTitleInCopy', e.target.checked)}
+            />
+          </div>
+
           <div className="pt-2">
             <div className="flex justify-between mb-2">
               <span className="text-[10px] text-text-light uppercase">Interface Scale</span>

@@ -24,7 +24,6 @@ import {
   DragStartEvent,
 } from '@dnd-kit/core';
 import {
-  arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
@@ -135,12 +134,12 @@ export const Sidebar: React.FC = () => {
   const handleMoveInit = () => {
       setMovingItems({
           ids: selectedIds,
-          type: 'folder', // It could be a mix, but we'll assume folder structure nodes for sidebar
+          type: 'folder', 
           source: 'sidebar'
       });
       setSelectionMode(false);
       setSelectedIds([]);
-      setSidebarOpen(false); // Close sidebar to let user navigate
+      setSidebarOpen(false); 
   };
 
   const handlePlaceItems = async () => {
@@ -162,29 +161,49 @@ export const Sidebar: React.FC = () => {
     const { active, over } = event;
     setActiveDragItem(null);
 
-    if (active.id !== over?.id) {
-      // Find the parent ID of the active item
+    if (active.id !== over?.id && over) {
       const activeNode = nodes.find((n) => n.id === active.id);
-      if (!activeNode) return;
+      const overNode = nodes.find((n) => n.id === over.id);
+      if (!activeNode || !overNode) return;
 
-      // Filter siblings (same level reordering)
-      const siblings = nodes.filter((n) => n.parentId === activeNode.parentId);
+      const isPartOfSelection = selectedIds.includes(active.id as string);
+      const movingIds = isPartOfSelection ? selectedIds : [active.id as string];
       
-      const oldIndex = siblings.findIndex((n) => n.id === active.id);
-      const newIndex = siblings.findIndex((n) => n.id === over?.id);
+      // If dropped ON a folder, move INSIDE
+      if (overNode.type === 'folder' && !movingIds.includes(overNode.id)) {
+          await moveNodes(movingIds, overNode.id);
+          if (isPartOfSelection) {
+              setSelectionMode(false);
+              setSelectedIds([]);
+          }
+          return;
+      }
 
-      if (oldIndex !== -1 && newIndex !== -1) {
-        const reorderedSiblings = arrayMove(siblings, oldIndex, newIndex);
-        
-        // Update order for all siblings
-        const updates = reorderedSiblings.map((node, index) => ({
+      // Otherwise, handle reordering (same level)
+      const destinationParentId = overNode.parentId;
+      const siblings = nodes.filter(n => n.parentId === destinationParentId);
+      
+      const remainingSiblings = siblings.filter(n => !movingIds.includes(n.id));
+      const overIndex = remainingSiblings.findIndex(n => n.id === over.id);
+      
+      const newIndex = overIndex === -1 ? 0 : overIndex;
+      const newOrderList = [...remainingSiblings];
+      const nodesToMove = nodes.filter(n => movingIds.includes(n.id));
+      
+      newOrderList.splice(newIndex, 0, ...nodesToMove);
+      
+      const updates = newOrderList.map((node, index) => ({
           ...node,
-          order: index,
-        }));
-
-        // We need to merge these updates back into the full nodes list for the store
-        // @ts-ignore
-        await reorderNodes(updates);
+          parentId: destinationParentId,
+          order: index
+      }));
+      
+      // @ts-ignore
+      await reorderNodes(updates);
+      
+      if (isPartOfSelection) {
+          setSelectionMode(false);
+          setSelectedIds([]);
       }
     }
   };
@@ -208,10 +227,11 @@ export const Sidebar: React.FC = () => {
     }
     
     return (
-              <SortableContext 
-                items={children.map(n => n.id)}
-                strategy={verticalListSortingStrategy}
-              >        <div className={cn("space-y-1", depth > 0 && "ml-4 border-l-2 border-border-light/20 pl-2")}>
+      <SortableContext 
+        items={children.map(n => n.id)}
+        strategy={verticalListSortingStrategy}
+      >
+        <div className={cn("space-y-1", depth > 0 && "ml-4 border-l-2 border-border-light/20 pl-2")}>
           {children.map(node => (
             <SortableFolderItem key={node.id} id={node.id}>
               <div 
@@ -340,7 +360,12 @@ export const Sidebar: React.FC = () => {
             )}
             <DragOverlay>
               {activeDragItem ? (
-                <div className="flex items-center gap-2 p-2 bg-surface border-2 border-primary rounded shadow-pixel-container opacity-90 scale-105">
+                <div className="flex items-center gap-2 p-2 bg-surface border-2 border-primary rounded shadow-pixel-container opacity-90 scale-105 relative">
+                  {selectedIds.length > 1 && selectedIds.includes(activeDragItem.id) && (
+                    <div className="absolute -top-3 -right-3 size-6 bg-secondary border-2 border-border-dark flex items-center justify-center text-[10px] font-bold text-text-light shadow-pixel-btn z-30">
+                      {selectedIds.length}
+                    </div>
+                  )}
                   <span className="material-symbols-outlined text-sm text-primary">
                     {activeDragItem.type === 'folder' ? 'folder' : activeDragItem.type === 'note' ? 'description' : 'task_alt'}
                   </span>

@@ -3,6 +3,7 @@ import { Note } from '../db/db';
 import { PixelButton } from './ui/PixelButton';
 import { PixelCheckbox } from './ui/PixelCheckbox';
 import { useNoteStore } from '../stores/useNoteStore';
+import { useSettingsStore } from '../stores/useSettingsStore';
 import { htmlToPlainText } from '../utils/ui';
 
 interface NoteItemProps {
@@ -17,22 +18,23 @@ interface NoteItemProps {
   onLongPress?: (id: number) => void;
 }
 
-export const NoteItem: React.FC<NoteItemProps> = ({ 
-  note, nodeId, onView, onEdit, onDelete, 
-  selected = false, selectionMode = false, onToggleSelect, onLongPress 
+export const NoteItem: React.FC<NoteItemProps> = ({
+  note, nodeId, onView, onEdit, onDelete,
+  selected = false, selectionMode = false, onToggleSelect, onLongPress
 }) => {
   const { setSearchQuery } = useNoteStore();
+  const settings = useSettingsStore();
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const plainText = `${note.title}\n\n${htmlToPlainText(note.content)}`;
+    const content = htmlToPlainText(note.content);
+    const plainText = settings.includeTitleInCopy ? `${note.title}\n\n${content}` : content;
     navigator.clipboard.writeText(plainText).then(() => {
       // Optional: Toast or alert
       alert('Copied to clipboard');
     }).catch(err => console.error('Copy failed', err));
   };
-
   const handleStart = () => {
     timerRef.current = setTimeout(() => {
       if (onLongPress) onLongPress(note.id);

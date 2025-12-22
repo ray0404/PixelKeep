@@ -7,28 +7,29 @@ import { PixelInput } from '../components/ui/PixelInput';
 import { PixelButton } from '../components/ui/PixelButton';
 import { useNavigate } from 'react-router-dom';
 import { PixelModal } from '../components/ui/PixelModal';
+import { SortableFolderItem } from '../components/SortableFolderItem';
 
 // DnD Kit
 import {
   DndContext,
   closestCenter,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragEndEvent,
   DragOverlay,
-  DragStartEvent
+  DragStartEvent,
 } from '@dnd-kit/core';
 import {
-  arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
   useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Note } from '../db/db';
+import { Note, FSNode } from '../db/db';
 
 // Sortable Note Item Wrapper
 const SortableNoteItem = ({ id, ...props }: any) => {
@@ -45,7 +46,7 @@ const SortableNoteItem = ({ id, ...props }: any) => {
     transform: CSS.Transform.toString(transform),
     transition,
     zIndex: isDragging ? 10 : 1,
-    opacity: isDragging ? 0.3 : 1, // Dim original while dragging
+    opacity: isDragging ? 0.3 : 1,
   };
 
   return (
@@ -66,15 +67,19 @@ export const NotesList: React.FC = () => {
   const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean, id: number | null, nodeId: string | null }>({ isOpen: false, id: null, nodeId: null });
   const [isNewFolderModalOpen, setIsNewFolderModalOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
-  const [activeDragItem, setActiveDragItem] = useState<Note | null>(null);
+  const [activeDragItem, setActiveDragItem] = useState<Note | FSNode | null>(null);
 
-  // Sensors for DnD
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-        activationConstraint: {
-            delay: 150, // Short delay to prevent accidental drags on tap
-            tolerance: 5,
-        }
+    useSensor(MouseSensor, {
+      activationConstraint: {
+        distance: 10,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
+      },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
@@ -86,20 +91,11 @@ export const NotesList: React.FC = () => {
     fetchNodes();
   }, [fetchNotes, fetchNodes]);
 
-  useEffect(() => {
-    // Ensure we are in a notes folder
-    if (!currentFolderId.includes('notes') && currentFolderId !== 'root_notes' && !nodes.find(n => n.id === currentFolderId && n.type === 'folder')) {
-       // This is a bit weak, but helps when switching between views via bottom nav
-    }
-  }, [currentFolderId, nodes]);
-
   const folderNodes = nodes.filter(n => n.parentId === currentFolderId && n.type === 'folder');
   const noteNodes = nodes.filter(n => n.parentId === currentFolderId && n.type === 'note');
 
-  // Filter notes based on current folder AND search
   const displayNotes = notes.filter(note => noteNodes.some(node => node.itemRefId === note.id));
   
-  // Sort notes based on FSNode order
   const sortedNotes = displayNotes.sort((a, b) => {
       const nodeA = noteNodes.find(n => n.itemRefId === a.id);
       const nodeB = noteNodes.find(n => n.itemRefId === b.id);
@@ -141,7 +137,6 @@ export const NotesList: React.FC = () => {
   };
 
   const handleMoveInit = () => {
-      // Find FSNode IDs for selected notes
       const selectedNodeIds = selectedIds.map(id => noteNodes.find(n => n.itemRefId === id)?.id).filter(Boolean) as string[];
       setMovingItems({
           ids: selectedNodeIds,
@@ -160,31 +155,63 @@ export const NotesList: React.FC = () => {
 
   const handleDragStart = (event: DragStartEvent) => {
       const note = filteredNotes.find(n => n.id === event.active.id);
-      if (note) setActiveDragItem(note);
+      if (note) {
+          setActiveDragItem(note);
+      } else {
+          const folder = folderNodes.find(n => n.id === event.active.id);
+          if (folder) setActiveDragItem(folder);
+      }
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveDragItem(null);
     
-    if (active.id !== over?.id) {
-        const oldIndex = sortedNotes.findIndex(n => n.id === active.id);
-        const newIndex = sortedNotes.findIndex(n => n.id === over?.id);
+    if (active.id !== over?.id && over) {
+        const activeNode = nodes.find(n => n.id === active.id) || noteNodes.find(n => n.itemRefId === active.id);
+        const overNode = nodes.find(n => n.id === over.id) || noteNodes.find(n => n.itemRefId === over.id);
         
-        // Reorder locally
-        // We actually need to reorder the *Nodes*, not just the notes array.
-        const newOrder = arrayMove(sortedNotes, oldIndex, newIndex);
-        
-        // Map back to nodes
-        const reorderedNodes = newOrder.map((note, index) => {
-            const node = noteNodes.find(n => n.itemRefId === note.id);
-            if (node) return { ...node, order: index };
-            return null;
-        }).filter(Boolean);
+        if (!activeNode || !overNode) return;
 
-        // Update DB
+        const isPartOfSelection = activeNode.type === 'note' && selectedIds.includes(activeNode.itemRefId);
+        const movingIds = isPartOfSelection ? selectedIds.map(id => `note-${id}`) : [activeNode.id];
+
+        // If dropped ON a folder, move INSIDE
+        if (overNode.type === 'folder' && !movingIds.includes(overNode.id)) {
+            await moveNodes(movingIds, overNode.id);
+            if (isPartOfSelection) {
+                setSelectionMode(false);
+                setSelectedIds([]);
+            }
+            return;
+        }
+
+        // Reorder at same level
+        const destinationParentId = overNode.parentId;
+        const siblings = nodes.filter(n => n.parentId === destinationParentId && (n.type === 'note' || n.type === 'folder'));
+        
+        const remainingSiblings = siblings.filter(n => !movingIds.includes(n.id));
+        const overIndex = remainingSiblings.findIndex(n => n.id === overNode.id);
+        const newIndex = overIndex === -1 ? 0 : overIndex;
+        
+        const newOrderList = [...remainingSiblings];
+        const nodesToMove = siblings.filter(n => movingIds.includes(n.id));
+        
+        newOrderList.splice(newIndex, 0, ...nodesToMove);
+        
+        const updates = newOrderList.map((node, index) => ({
+            ...node,
+            parentId: destinationParentId,
+            order: index
+        }));
+
         // @ts-ignore
-        await reorderNodes(reorderedNodes);
+        await reorderNodes(updates);
+        
+        if (isPartOfSelection) {
+            setSelectionMode(false);
+            setSelectedIds([]);
+        }
     }
   };
 
@@ -201,7 +228,6 @@ export const NotesList: React.FC = () => {
 
   return (
     <div className="p-4 space-y-4 pb-24">
-      {/* Search Bar - No Changes */}
       <div className="relative py-3">
         <div className="absolute left-4 top-1/2 -translate-y-1/2 text-primary">
           <span className="material-symbols-outlined text-xl">search</span>
@@ -215,88 +241,97 @@ export const NotesList: React.FC = () => {
       </div>
 
       <div className="flex flex-col gap-4">
-        {/* Folders List - No Changes */}
-        {!searchQuery && folderNodes.map(folder => (
-          <div 
-            key={folder.id}
-            className="flex items-center justify-between border-2 border-border-light bg-surface p-3 shadow-pixel-container cursor-pointer hover:bg-primary/5 transition-colors"
-          >
-            <div className="flex items-center gap-3 flex-1" onClick={() => setCurrentFolderId(folder.id)}>
-              <span className="material-symbols-outlined text-4xl text-secondary">folder</span>
-              <p className="text-sm font-bold text-primary truncate">{folder.name}</p>
-            </div>
-            <button 
-              onClick={() => deleteNode(folder.id)}
-              className="text-danger hover:text-primary transition-colors p-2"
-            >
-              <span className="material-symbols-outlined">delete</span>
-            </button>
-          </div>
-        ))}
-
-        {filteredNotes.length === 0 && (searchQuery || folderNodes.length === 0) ? (
-          <div className="mt-8 flex flex-col items-center justify-center gap-4 border-2 border-dashed border-border-light/50 bg-surface/50 p-6 text-center">
-            <span className="material-symbols-outlined text-6xl text-primary/70">
-              {searchQuery ? 'search_off' : 'inventory_2'}
-            </span>
-            <h3 className="text-sm font-bold text-text-light">
-              {searchQuery ? 'No scrolls match your search.' : 'Your scroll case is empty.'}
-            </h3>
-            {!searchQuery && <p className="max-w-xs text-xs leading-relaxed text-text-light/70">Tap the '+' button to scribe a new scroll!</p>}
-          </div>
-        ) : (
-          <DndContext 
+        <DndContext 
             sensors={sensors}
             collisionDetection={closestCenter}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
             autoScroll={{
-                threshold: { x: 0, y: 0.15 }, // Trigger scroll in top/bottom 15% of screen
+                threshold: { x: 0, y: 0.15 },
                 acceleration: 10,
             }}
-          >
+        >
             <SortableContext 
-              items={filteredNotes.map(n => n.id)}
-              strategy={verticalListSortingStrategy}
-              disabled={selectionMode || !!searchQuery}
+                items={[...folderNodes.map(f => f.id), ...filteredNotes.map(n => n.id)]}
+                strategy={verticalListSortingStrategy}
             >
-              {filteredNotes.map(note => (
-                <SortableNoteItem 
-                  key={note.id}
-                  id={note.id} 
-                  note={note} 
-                  nodeId={`note-${note.id}`}
-                  onView={(id: number) => navigate(`/notes/view/${id}`)}
-                  onEdit={(id: number) => navigate(`/notes/edit/${id}`)}
-                  onDelete={handleDeleteRequest}
-                  selected={selectedIds.includes(note.id)}
-                  selectionMode={selectionMode}
-                  onToggleSelect={handleToggleSelect}
-                  onLongPress={handleLongPress}
-                />
-              ))}
+                {!searchQuery && folderNodes.map(folder => (
+                    <SortableFolderItem key={folder.id} id={folder.id}>
+                        <div 
+                            className="flex items-center justify-between border-2 border-border-light bg-surface p-3 shadow-pixel-container cursor-pointer hover:bg-primary/5 transition-colors"
+                        >
+                            <div className="flex items-center gap-3 flex-1" onClick={() => setCurrentFolderId(folder.id)}>
+                                <span className="material-symbols-outlined text-4xl text-secondary">folder</span>
+                                <p className="text-sm font-bold text-primary truncate">{folder.name}</p>
+                            </div>
+                            <button 
+                                onClick={() => deleteNode(folder.id)}
+                                className="text-danger hover:text-primary transition-colors p-2"
+                            >
+                                <span className="material-symbols-outlined">delete</span>
+                            </button>
+                        </div>
+                    </SortableFolderItem>
+                ))}
+
+                {filteredNotes.length === 0 && (searchQuery || folderNodes.length === 0) ? (
+                    <div className="mt-8 flex flex-col items-center justify-center gap-4 border-2 border-dashed border-border-light/50 bg-surface/50 p-6 text-center">
+                        <span className="material-symbols-outlined text-6xl text-primary/70">
+                        {searchQuery ? 'search_off' : 'inventory_2'}
+                        </span>
+                        <h3 className="text-sm font-bold text-text-light">
+                        {searchQuery ? 'No scrolls match your search.' : 'Your scroll case is empty.'}
+                        </h3>
+                        {!searchQuery && <p className="max-w-xs text-xs leading-relaxed text-text-light/70">Tap the '+' button to scribe a new scroll!</p>}
+                    </div>
+                ) : (
+                    filteredNotes.map(note => (
+                        <SortableNoteItem 
+                            key={note.id}
+                            id={note.id} 
+                            note={note} 
+                            nodeId={`note-${note.id}`}
+                            onView={(id: number) => navigate(`/notes/view/${id}`)}
+                            onEdit={(id: number) => navigate(`/notes/edit/${id}`)}
+                            onDelete={handleDeleteRequest}
+                            selected={selectedIds.includes(note.id)}
+                            selectionMode={selectionMode}
+                            onToggleSelect={handleToggleSelect}
+                            onLongPress={handleLongPress}
+                        />
+                    ))
+                )}
             </SortableContext>
             
-            {/* Drag Overlay for smooth visual feedback */}
             <DragOverlay>
                 {activeDragItem ? (
-                    <div className="opacity-90 rotate-2 scale-105">
-                         <NoteItem 
-                            note={activeDragItem} 
-                            nodeId={`note-${activeDragItem.id}`}
-                            onView={() => {}}
-                            onEdit={() => {}}
-                            onDelete={() => {}}
-                            selected={false}
-                        />
+                    <div className="opacity-90 rotate-2 scale-105 relative">
+                         {selectedIds.length > 1 && !('type' in activeDragItem) && selectedIds.includes((activeDragItem as Note).id) && (
+                            <div className="absolute -top-3 -right-3 size-8 bg-secondary border-4 border-border-dark flex items-center justify-center text-xs font-bold text-text-light shadow-pixel-btn z-30">
+                                {selectedIds.length}
+                            </div>
+                         )}
+                         {('type' in activeDragItem && activeDragItem.type === 'folder') ? (
+                             <div className="flex items-center gap-3 border-2 border-primary bg-surface p-3 shadow-pixel-container">
+                                <span className="material-symbols-outlined text-4xl text-secondary">folder</span>
+                                <p className="text-sm font-bold text-primary truncate">{(activeDragItem as FSNode).name}</p>
+                             </div>
+                         ) : (
+                            <NoteItem 
+                                note={activeDragItem as Note} 
+                                nodeId={`note-${(activeDragItem as Note).id}`}
+                                onView={() => {}}
+                                onEdit={() => {}}
+                                onDelete={() => {}}
+                                selected={false}
+                            />
+                         )}
                     </div>
                 ) : null}
             </DragOverlay>
-          </DndContext>
-        )}
+        </DndContext>
       </div>
 
-      {/* ... Buttons and Modals ... */}
       <div className="fixed bottom-24 right-6 z-20 flex flex-col gap-4">
         {!selectionMode && !movingItems && (
           <>

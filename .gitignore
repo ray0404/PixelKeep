@@ -5,4 +5,5 @@ dist/
 backup_notes.json
 firebase-debug.log
 updates.md
-font_Exo.htmlconductor/
+font_Exo.html
+conductor/

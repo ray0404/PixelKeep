@@ -24,7 +24,8 @@ export const NoteDetails: React.FC = () => {
 
   const handleCopy = async () => {
     // Preserve formatting: whitespace and new-lines
-    const plainText = `${note.title}\n\n${htmlToPlainText(note.content)}`; 
+    const content = htmlToPlainText(note.content);
+    const plainText = settings.includeTitleInCopy ? `${note.title}\n\n${content}` : content; 
     try {
       await navigator.clipboard.writeText(plainText);
       alert('Copied to clipboard!');

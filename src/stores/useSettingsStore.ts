@@ -15,6 +15,7 @@ interface SettingsState {
   contentFontSize: number;
   wordWrap: boolean;
   dualDirectory: boolean;
+  includeTitleInCopy: boolean;
   defaultAlarmSound: { data: string; name: string } | null;
   setTheme: (theme: 'Standard' | 'Pixel') => void;
   setSetting: (key: keyof Omit<SettingsState, 'setTheme' | 'setSetting'>, value: any) => void;
@@ -36,6 +37,7 @@ export const useSettingsStore = create<SettingsState>()(
       contentFontSize: 100,
       wordWrap: true,
       dualDirectory: false,
+      includeTitleInCopy: true,
       defaultAlarmSound: null,
 
       setTheme: (theme) => set({ theme }),
