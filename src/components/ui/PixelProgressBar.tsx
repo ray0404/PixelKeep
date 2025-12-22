@@ -25,11 +25,12 @@ export const PixelProgressBar: React.FC<PixelProgressBarProps> = ({
             {label && (
                 <div className="flex justify-between items-center px-1">
                     <span className="text-[10px] font-bold text-text-light uppercase tracking-wider">{label}</span>
-                    <span className="text-[10px] font-bold text-text-light">{Math.round(progress)}%</span>
+                    <span className="text-[10px] font-bold text-text-light">{Math.round(Math.max(0, Math.min(100, progress)))}%</span>
                 </div>
             )}
             <div className="h-6 w-full bg-surface border-4 border-border-dark relative p-1 overflow-hidden">
                 <div 
+                    data-testid="progress-bar-fill"
                     className={cn(
                         "h-full transition-all duration-300 ease-out",
                         colorClasses[color]
