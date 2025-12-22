@@ -15,7 +15,8 @@ import {
   DndContext,
   closestCenter,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragEndEvent,
@@ -32,7 +33,7 @@ import { FSNode } from '../db/db';
 
 export const Sidebar: React.FC = () => {
   const { sidebarOpen, setSidebarOpen, movingItems, setMovingItems } = useUIStore();
-  const { nodes, fetchNodes, addFolder, currentFolderId, setCurrentFolderId, deleteNode, moveNodes, renameNode } = useFolderStore();
+  const { nodes, fetchNodes, addFolder, currentFolderId, setCurrentFolderId, deleteNode, moveNodes, renameNode, reorderNodes } = useFolderStore();
   const { dualDirectory } = useSettingsStore();
   const navigate = useNavigate();
   const location = useLocation();
@@ -52,9 +53,14 @@ export const Sidebar: React.FC = () => {
   const [activeDragItem, setActiveDragItem] = useState<FSNode | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
+    useSensor(MouseSensor, {
       activationConstraint: {
-        delay: 150,
+        distance: 10,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
         tolerance: 5,
       },
     }),
@@ -84,7 +90,8 @@ export const Sidebar: React.FC = () => {
     timerRef.current = setTimeout(() => {
       setSelectionMode(true);
       if (!selectedIds.includes(id)) setSelectedIds(prev => [...prev, id]);
-    }, 500);
+      timerRef.current = null;
+    }, 200);
   };
 
   const handleEnd = () => {
@@ -189,321 +196,162 @@ export const Sidebar: React.FC = () => {
     }
   };
 
-    const renderScaffolding = (parentId: string, depth: number = 0) => {
-
-      let children = nodes.filter(n => n.parentId === parentId);
-
-      
-
-      if (!dualDirectory) {
-
-        if (isTasksView || parentId === 'root_tasks') {
-
-          children = children.filter(n => n.type === 'task' || n.type === 'folder');
-
-        } else {
-
-          children = children.filter(n => n.type === 'note' || n.type === 'folder');
-
-        }
-
+  const renderScaffolding = (parentId: string, depth: number = 0) => {
+    let children = nodes.filter(n => n.parentId === parentId);
+    
+    if (!dualDirectory) {
+      if (isTasksView || parentId === 'root_tasks') {
+        children = children.filter(n => n.type === 'task' || n.type === 'folder');
+      } else {
+        children = children.filter(n => n.type === 'note' || n.type === 'folder');
       }
-
-      
-
-      return (
-
-        <SortableContext 
-
-          items={children.map(n => n.id)}
-
-          strategy={verticalListSortingStrategy}
-
-          disabled={selectionMode}
-
-        >
-
-          <div className={cn("space-y-1", depth > 0 && "ml-4 border-l-2 border-border-light/20 pl-2")}>
-
-            {children.map(node => (
-
-              <SortableFolderItem key={node.id} id={node.id}>
-
-                <div 
-
-                  className={cn(
-
-                    "group flex items-center justify-between p-1 hover:bg-primary/10 cursor-pointer rounded select-none",
-
-                    currentFolderId === node.id && "bg-primary/20",
-
-                    selectedIds.includes(node.id) && "bg-secondary/20 border border-secondary/50"
-
-                  )}
-
-                  onTouchStart={() => handleStart(node.id)}
-
-                  onTouchEnd={handleEnd}
-
-                  onMouseDown={() => handleStart(node.id)}
-
-                  onMouseUp={handleEnd}
-
-                  onMouseLeave={handleEnd}
-
-                  onClick={(e) => {
-
-                    if (selectionMode) {
-
-                      e.stopPropagation();
-
-                      handleToggle(node.id);
-
-                    } else {
-
-                      if (node.type === 'folder') {
-
-                        setCurrentFolderId(node.id);
-
-                        navigate(isTasksView ? '/tasks' : '/notes');
-
-                      } else if (node.type === 'note') {
-
-                        navigate(`/notes/view/${node.itemRefId}`);
-
-                        setSidebarOpen(false);
-
-                      } else if (node.type === 'task') {
-
-                        navigate(`/tasks/edit/${node.itemRefId}`);
-
-                        setSidebarOpen(false);
-
-                      }
-
-                    }
-
-                  }}
-
-                >
-
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-
-                    {selectionMode && (
-
-                       <div className="pointer-events-none">
-
-                         <PixelCheckbox checked={selectedIds.includes(node.id)} onChange={() => {}} />
-
-                       </div>
-
-                    )}
-
-                    <span className="material-symbols-outlined text-sm">
-
-                      {node.type === 'folder' ? 'folder' : node.type === 'note' ? 'description' : 'task_alt'}
-
-                    </span>
-
-                    <span className="text-[10px] font-bold truncate">{node.name}</span>
-
-                  </div>
-
-                  {!selectionMode && (
-
-                    <button 
-
-                      onClick={(e) => {
-
-                        e.stopPropagation();
-
-                        setDeleteConfirm({ isOpen: true, id: node.id, name: node.name });
-
-                      }}
-
-                      className="opacity-0 group-hover:opacity-100 text-danger hover:text-primary transition-opacity"
-
-                    >
-
-                      <span className="material-symbols-outlined text-xs">delete</span>
-
-                    </button>
-
-                  )}
-
-                </div>
-
-                {node.type === 'folder' && renderScaffolding(node.id, depth + 1)}
-
-              </SortableFolderItem>
-
-            ))}
-
-          </div>
-
-        </SortableContext>
-
-      );
-
-    };
-
-  
-
+    }
+    
     return (
-
-      <>
-
-        <div 
-
-          className={cn(
-
-            "fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition-opacity duration-300",
-
-            sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
-
-          )}
-
-          onClick={() => setSidebarOpen(false)}
-
-        />
-
-        
-
-        <aside 
-
-          className={cn(
-
-            "fixed inset-y-0 left-0 z-50 w-64 transform border-r-4 border-border-dark bg-surface transition-transform duration-300 ease-in-out shadow-pixel-container flex flex-col",
-
-            sidebarOpen ? "translate-x-0" : "-translate-x-full"
-
-          )}
-
-        >
-
-          <div className="flex items-center justify-between border-b-4 border-border-dark p-4 bg-surface">
-
-            <h2 className="text-xs font-bold uppercase text-primary text-shadow-pixel">Directories</h2>
-
-            <button 
-
-              onClick={() => setSidebarOpen(false)}
-
-              className="text-secondary hover:text-primary"
-
-            >
-
-              <span className="material-symbols-outlined">close</span>
-
-            </button>
-
-          </div>
-
-  
-
-          <div className="p-4 flex gap-2 border-b-2 border-border-light/30">
-
-            <PixelButton 
-
-              variant="secondary" 
-
-              className="flex-1 h-10 text-[10px]"
-
-              onClick={() => {
-
-                setCurrentFolderId(isTasksView ? 'root_tasks' : 'root_notes');
-
-                navigate(isTasksView ? '/tasks' : '/notes');
-
-              }}
-
-            >
-
-              ROOT
-
-            </PixelButton>
-
-          </div>
-
-  
-
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-
-            <DndContext 
-
-              sensors={sensors}
-
-              collisionDetection={closestCenter}
-
-              onDragStart={handleDragStart}
-
-              onDragEnd={handleDragEnd}
-
-              autoScroll={{
-
-                threshold: { x: 0, y: 0.15 },
-
-                acceleration: 10,
-
-              }}
-
-            >
-
-              {dualDirectory ? (
-
-                <>
-
-                  <div>
-
-                    <h3 className="text-[10px] font-bold text-secondary uppercase mb-2 border-b border-border-light/20">Notes</h3>
-
-                    {renderScaffolding('root_notes')}
-
-                  </div>
-
-                  <div>
-
-                    <h3 className="text-[10px] font-bold text-secondary uppercase mb-2 border-b border-border-light/20">Tasks</h3>
-
-                    {renderScaffolding('root_tasks')}
-
-                  </div>
-
-                </>
-
-              ) : (
-
-                renderScaffolding(rootId)
-
-              )}
-
-              <DragOverlay>
-
-                {activeDragItem ? (
-
-                  <div className="flex items-center gap-2 p-2 bg-surface border-2 border-primary rounded shadow-pixel-container opacity-90 scale-105">
-
-                    <span className="material-symbols-outlined text-sm text-primary">
-
-                      {activeDragItem.type === 'folder' ? 'folder' : activeDragItem.type === 'note' ? 'description' : 'task_alt'}
-
-                    </span>
-
-                    <span className="text-[10px] font-bold truncate text-primary">{activeDragItem.name}</span>
-
-                  </div>
-
-                ) : null}
-
-              </DragOverlay>
-
-            </DndContext>
-
-          </div>
-
-  
-
-          <div className="p-4 border-t-4 border-border-dark bg-surface">
+              <SortableContext 
+                items={children.map(n => n.id)}
+                strategy={verticalListSortingStrategy}
+              >        <div className={cn("space-y-1", depth > 0 && "ml-4 border-l-2 border-border-light/20 pl-2")}>
+          {children.map(node => (
+            <SortableFolderItem key={node.id} id={node.id}>
+              <div 
+                className={cn(
+                  "group flex items-center justify-between p-1 hover:bg-primary/10 cursor-pointer rounded select-none",
+                  currentFolderId === node.id && "bg-primary/20",
+                  selectedIds.includes(node.id) && "bg-secondary/20 border border-secondary/50"
+                )}
+                onTouchStart={() => handleStart(node.id)}
+                onTouchEnd={handleEnd}
+                onMouseDown={() => handleStart(node.id)}
+                onMouseUp={handleEnd}
+                onMouseLeave={handleEnd}
+                onClick={(e) => {
+                  if (selectionMode) {
+                    e.stopPropagation();
+                    handleToggle(node.id);
+                  } else {
+                    if (node.type === 'folder') {
+                      setCurrentFolderId(node.id);
+                      navigate(isTasksView ? '/tasks' : '/notes');
+                    } else if (node.type === 'note') {
+                      navigate(`/notes/view/${node.itemRefId}`);
+                      setSidebarOpen(false);
+                    } else if (node.type === 'task') {
+                      navigate(`/tasks/edit/${node.itemRefId}`);
+                      setSidebarOpen(false);
+                    }
+                  }
+                }}
+              >
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  {selectionMode && (
+                     <div className="pointer-events-none">
+                       <PixelCheckbox checked={selectedIds.includes(node.id)} onChange={() => {}} />
+                     </div>
+                  )}
+                  <span className="material-symbols-outlined text-sm">
+                    {node.type === 'folder' ? 'folder' : node.type === 'note' ? 'description' : 'task_alt'}
+                  </span>
+                  <span className="text-[10px] font-bold truncate">{node.name}</span>
+                </div>
+                {!selectionMode && (
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteConfirm({ isOpen: true, id: node.id, name: node.name });
+                    }}
+                    className="opacity-0 group-hover:opacity-100 text-danger hover:text-primary transition-opacity"
+                  >
+                    <span className="material-symbols-outlined text-xs">delete</span>
+                  </button>
+                )}
+              </div>
+              {node.type === 'folder' && renderScaffolding(node.id, depth + 1)}
+            </SortableFolderItem>
+          ))}
+        </div>
+      </SortableContext>
+    );
+  };
+
+  return (
+    <>
+      <div 
+        className={cn(
+          "fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition-opacity duration-300",
+          sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        )}
+        onClick={() => setSidebarOpen(false)}
+      />
+      
+      <aside 
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 w-64 transform border-r-4 border-border-dark bg-surface transition-transform duration-300 ease-in-out shadow-pixel-container flex flex-col",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        <div className="flex items-center justify-between border-b-4 border-border-dark p-4 bg-surface">
+          <h2 className="text-xs font-bold uppercase text-primary text-shadow-pixel">Directories</h2>
+          <button 
+            onClick={() => setSidebarOpen(false)}
+            className="text-secondary hover:text-primary"
+          >
+            <span className="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        <div className="p-4 flex gap-2 border-b-2 border-border-light/30">
+          <PixelButton 
+            variant="secondary" 
+            className="flex-1 h-10 text-[10px]"
+            onClick={() => {
+              setCurrentFolderId(isTasksView ? 'root_tasks' : 'root_notes');
+              navigate(isTasksView ? '/tasks' : '/notes');
+            }}
+          >
+            ROOT
+          </PixelButton>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <DndContext 
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            autoScroll={{
+              threshold: { x: 0, y: 0.15 },
+              acceleration: 10,
+            }}
+          >
+            {dualDirectory ? (
+              <>
+                <div>
+                  <h3 className="text-[10px] font-bold text-secondary uppercase mb-2 border-b border-border-light/20">Notes</h3>
+                  {renderScaffolding('root_notes')}
+                </div>
+                <div>
+                  <h3 className="text-[10px] font-bold text-secondary uppercase mb-2 border-b border-border-light/20">Tasks</h3>
+                  {renderScaffolding('root_tasks')}
+                </div>
+              </>
+            ) : (
+              renderScaffolding(rootId)
+            )}
+            <DragOverlay>
+              {activeDragItem ? (
+                <div className="flex items-center gap-2 p-2 bg-surface border-2 border-primary rounded shadow-pixel-container opacity-90 scale-105">
+                  <span className="material-symbols-outlined text-sm text-primary">
+                    {activeDragItem.type === 'folder' ? 'folder' : activeDragItem.type === 'note' ? 'description' : 'task_alt'}
+                  </span>
+                  <span className="text-[10px] font-bold truncate text-primary">{activeDragItem.name}</span>
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        </div>
+
+        <div className="p-4 border-t-4 border-border-dark bg-surface">
            {selectionMode ? (
               <div className="flex gap-2">
                  <PixelButton className="w-full h-12 text-xs uppercase" variant="secondary" onClick={() => { setSelectionMode(false); setSelectedIds([]); }}>
