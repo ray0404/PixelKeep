@@ -11,7 +11,7 @@ import { useSettingsStore } from '../stores/useSettingsStore';
 
 export const Sidebar: React.FC = () => {
   const { sidebarOpen, setSidebarOpen, movingItems, setMovingItems } = useUIStore();
-  const { nodes, fetchNodes, addFolder, currentFolderId, setCurrentFolderId, deleteNode, moveNodes } = useFolderStore();
+  const { nodes, fetchNodes, addFolder, currentFolderId, setCurrentFolderId, deleteNode, moveNodes, renameNode } = useFolderStore();
   const { dualDirectory } = useSettingsStore();
   const navigate = useNavigate();
   const location = useLocation();
@@ -23,6 +23,10 @@ export const Sidebar: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean, id: string | null, name: string }>({ isOpen: false, id: null, name: '' });
+
+  const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
+  const [newNodeName, setNewName] = useState('');
+  const [nodeToRename, setNodeToRename] = useState<string | null>(null);
 
   useEffect(() => {
     if (sidebarOpen) {
@@ -62,6 +66,27 @@ export const Sidebar: React.FC = () => {
       if (newIds.length === 0) setSelectionMode(false);
     } else {
       setSelectedIds(prev => [...prev, id]);
+    }
+  };
+
+  const handleRenameInit = () => {
+    if (selectedIds.length !== 1) return;
+    const nodeId = selectedIds[0];
+    const node = nodes.find(n => n.id === nodeId);
+    if (node) {
+      setNodeToRename(nodeId);
+      setNewName(node.name);
+      setIsRenameModalOpen(true);
+    }
+  };
+
+  const handleRenameSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (nodeToRename && newNodeName.trim()) {
+      await renameNode(nodeToRename, newNodeName);
+      setIsRenameModalOpen(false);
+      setSelectionMode(false);
+      setSelectedIds([]);
     }
   };
 
@@ -225,6 +250,11 @@ export const Sidebar: React.FC = () => {
                  <PixelButton className="w-full h-12 text-xs uppercase" variant="secondary" onClick={() => { setSelectionMode(false); setSelectedIds([]); }}>
                     Cancel ({selectedIds.length})
                  </PixelButton>
+                 {selectedIds.length === 1 && (
+                    <PixelButton className="w-full h-12 text-xs uppercase" onClick={handleRenameInit}>
+                        RENAME
+                    </PixelButton>
+                 )}
                  <PixelButton className="w-full h-12 text-xs uppercase" onClick={handleMoveInit}>
                     MOVE
                  </PixelButton>
@@ -262,6 +292,22 @@ export const Sidebar: React.FC = () => {
             autoFocus
           />
           <PixelButton type="submit" className="w-full h-12 text-xs">CREATE</PixelButton>
+        </form>
+      </PixelModal>
+
+      <PixelModal 
+        isOpen={isRenameModalOpen} 
+        onClose={() => setIsRenameModalOpen(false)}
+        title="Rename Node"
+      >
+        <form onSubmit={handleRenameSubmit} className="space-y-4">
+          <PixelInput 
+            value={newNodeName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="New name..."
+            autoFocus
+          />
+          <PixelButton type="submit" className="w-full h-12 text-xs">RENAME</PixelButton>
         </form>
       </PixelModal>
 
