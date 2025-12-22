@@ -1,9 +1,13 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useTranscriptionStore } from './useTranscriptionStore';
+import { act } from '@testing-library/react';
 
 describe('useTranscriptionStore', () => {
     beforeEach(() => {
-        useTranscriptionStore.getState().reset();
+        act(() => {
+            useTranscriptionStore.getState().reset();
+        });
+        vi.restoreAllMocks();
     });
 
     it('should initialize with default values', () => {
@@ -50,4 +54,152 @@ describe('useTranscriptionStore', () => {
         expect(state.isDownloading).toBe(false);
         expect(state.progress).toBe(0);
     });
+
+        it('should handle transcribe flow', async () => {
+
+            // Mock global objects
+
+            const workerInstance = {
+
+                postMessage: vi.fn(),
+
+                onmessage: null as any,
+
+                terminate: vi.fn()
+
+            };
+
+            
+
+            class MockWorker {
+
+                postMessage = workerInstance.postMessage;
+
+                terminate = workerInstance.terminate;
+
+                set onmessage(val: any) { workerInstance.onmessage = val; }
+
+                get onmessage() { return workerInstance.onmessage; }
+
+                addEventListener = vi.fn();
+
+            }
+
+    
+
+                    vi.stubGlobal('Worker', MockWorker);
+
+    
+
+                    
+
+    
+
+                    class MockURL {
+
+    
+
+                        href = 'mock-url';
+
+    
+
+                        constructor(url: string | URL, base?: string | URL) {}
+
+    
+
+                    }
+
+    
+
+                    vi.stubGlobal('URL', MockURL);
+
+    
+
+            
+
+            
+
+            const mockAudioBuffer = {
+
+                getChannelData: vi.fn().mockReturnValue(new Float32Array(10))
+
+            };
+
+    
+
+            class MockAudioContext {
+
+                decodeAudioData = vi.fn().mockResolvedValue(mockAudioBuffer);
+
+                close = vi.fn();
+
+            }
+
+    
+
+            vi.stubGlobal('AudioContext', MockAudioContext);
+
+            
+
+            vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+
+                arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(10))
+
+            }));
+
+    
+
+            let transcribePromise: Promise<void>;
+
+                    act(() => {
+
+                        transcribePromise = useTranscriptionStore.getState().transcribe('test-url');
+
+                    });
+
+                    
+
+                    expect(useTranscriptionStore.getState().error).toBe(null);
+
+                    expect(useTranscriptionStore.getState().isTranscribing).toBe(true);
+
+                    
+
+                    // Wait for microtasks so worker.onmessage is assigned
+
+                    await new Promise(resolve => setTimeout(resolve, 0));
+
+            
+
+                    // Simulate worker complete
+
+                    act(() => {
+
+                        if (workerInstance.onmessage) {
+
+                            workerInstance.onmessage({ data: { type: 'COMPLETE', data: 'Deciphered text' } });
+
+                        }
+
+                    });
+
+            
+
+            
+
+            await act(async () => {
+
+                await transcribePromise!;
+
+            });
+
+            
+
+            expect(useTranscriptionStore.getState().isTranscribing).toBe(false);
+
+            expect(useTranscriptionStore.getState().lastResult).toBe('Deciphered text');
+
+        });
+
+    
 });

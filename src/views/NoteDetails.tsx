@@ -14,7 +14,7 @@ export const NoteDetails: React.FC = () => {
   const navigate = useNavigate();
   const { notes, setSearchQuery } = useNoteStore();
   const settings = useSettingsStore();
-  const { setDownloading, reset: resetTranscription } = useTranscriptionStore();
+  const { setDownloading, reset: resetTranscription, transcribe, lastResult, isTranscribing } = useTranscriptionStore();
   const [note, setNote] = useState<Note | null>(null);
 
   const [isDecipherModalOpen, setIsDecipherModalOpen] = useState(false);
@@ -26,6 +26,18 @@ export const NoteDetails: React.FC = () => {
       setNote(found);
     }
   }, [id, notes]);
+
+  useEffect(() => {
+    if (lastResult && !isTranscribing && note) {
+        const decipheredText = `\n\n--- DECIPHERED ECHO ---\n${lastResult}`;
+        // Check if already deciphered to avoid double appending (basic check)
+        if (!note.content.includes('DECIPHERED ECHO')) {
+            useNoteStore.getState().updateNote(note.id, {
+                content: note.content + decipheredText
+            });
+        }
+    }
+  }, [lastResult, isTranscribing, note]);
 
   if (!note) return <div className="p-4 text-center">Note not found.</div>;
 
@@ -56,9 +68,11 @@ export const NoteDetails: React.FC = () => {
   };
 
   const startDeciphering = () => {
-    resetTranscription();
-    setIsDecipherModalOpen(true);
-    // The actual transcription trigger will be in Phase 4, but we need the UI ready
+    if (note?.audio) {
+        resetTranscription();
+        setIsDecipherModalOpen(true);
+        transcribe(note.audio);
+    }
   };
 
   const grantPermission = () => {
