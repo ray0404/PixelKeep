@@ -143,6 +143,10 @@ export const Sidebar: React.FC = () => {
   };
 
   const handleDragStart = (event: DragStartEvent) => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
     const node = nodes.find((n) => n.id === event.active.id);
     if (node) setActiveDragItem(node);
   };
@@ -191,7 +195,8 @@ export const Sidebar: React.FC = () => {
     if (!dualDirectory) {
       if (isTasksView || parentId === 'root_tasks') {
         children = children.filter(n => n.type === 'task' || n.type === 'folder');
-      } else {
+      }
+      else {
         children = children.filter(n => n.type === 'note' || n.type === 'folder');
       }
     }
@@ -202,6 +207,10 @@ export const Sidebar: React.FC = () => {
         collisionDetection={closestCenter}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
+        autoScroll={{
+          threshold: { x: 0, y: 0.15 },
+          acceleration: 10,
+        }}
       >
         <SortableContext 
           items={children.map(n => n.id)}
