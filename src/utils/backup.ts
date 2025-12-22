@@ -81,7 +81,13 @@ export async function importData(file: File, password: string) {
   
   if (extension === 'json') {
     const text = await file.text();
-    const data = JSON.parse(text);
+    let data = JSON.parse(text);
+    
+    // Legacy support: if array, it's a list of notes
+    if (Array.isArray(data)) {
+      data = { notes: data, tasks: [] };
+    }
+
     await processImport(data, password);
   } else if (extension === 'zip') {
     const zip = await JSZip.loadAsync(file);
@@ -103,7 +109,20 @@ async function processImport(jsonData: any, password: string) {
   }
 
   // Import Notes
-  for (const note of jsonData.notes) {
+  for (const rawNote of jsonData.notes) {
+    const note = { ...rawNote };
+
+    // Legacy normalization
+    if (!note.updatedAt && note.timestamp) {
+      note.updatedAt = new Date(note.timestamp).toISOString();
+    }
+    if (!note.tags) {
+      note.tags = [];
+    }
+    if (note.audio === null) {
+      delete note.audio;
+    }
+
     await db.notes.put({ id: note.id, data: encrypt(note, password) });
     // For legacy: create node if not present
     if (!jsonData.nodes || !jsonData.nodes.find((n: any) => n.itemRefId === note.id && n.type === 'note')) {

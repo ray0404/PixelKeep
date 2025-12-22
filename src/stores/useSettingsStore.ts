@@ -8,6 +8,7 @@ interface SettingsState {
   primaryColor: string;
   secondaryColor: string;
   textColor: string;
+  terminalTextColor: string;
   lineHeight: string;
   compact: boolean;
   scale: number;
@@ -28,6 +29,7 @@ export const useSettingsStore = create<SettingsState>()(
       primaryColor: '#4ade80',
       secondaryColor: '#a855f7',
       textColor: '#f0fdf4',
+      terminalTextColor: '#f0fdf4',
       lineHeight: 'leading-normal',
       compact: false,
       scale: 100,

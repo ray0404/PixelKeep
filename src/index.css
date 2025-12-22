@@ -135,6 +135,7 @@ body.font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Conso
 body.font-Inter { font-family: 'Inter', sans-serif !important; }
 body.font-Roboto { font-family: 'Roboto', sans-serif !important; }
 body.font-Open-Sans { font-family: 'Open Sans', sans-serif !important; }
+body.font-Exo { font-family: 'Exo', sans-serif !important; }
 
 /* Word Wrap */
 body.wrap-mode-standard .pixel-textarea,

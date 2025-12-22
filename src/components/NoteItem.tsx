@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Note } from '../db/db';
 import { PixelButton } from './ui/PixelButton';
 import { PixelCheckbox } from './ui/PixelCheckbox';
 import { useNoteStore } from '../stores/useNoteStore';
+import { htmlToPlainText } from '../utils/ui';
 
 interface NoteItemProps {
   note: Note;
@@ -10,17 +11,58 @@ interface NoteItemProps {
   onView: (id: number) => void;
   onEdit: (id: number) => void;
   onDelete: (id: number, nodeId: string) => void;
+  selected?: boolean;
+  selectionMode?: boolean;
+  onToggleSelect?: (id: number) => void;
+  onLongPress?: (id: number) => void;
 }
 
-export const NoteItem: React.FC<NoteItemProps> = ({ note, nodeId, onView, onEdit, onDelete }) => {
+export const NoteItem: React.FC<NoteItemProps> = ({ 
+  note, nodeId, onView, onEdit, onDelete, 
+  selected = false, selectionMode = false, onToggleSelect, onLongPress 
+}) => {
   const { setSearchQuery } = useNoteStore();
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const plainText = `${note.title}\n\n${htmlToPlainText(note.content)}`;
+    navigator.clipboard.writeText(plainText).then(() => {
+      // Optional: Toast or alert
+      alert('Copied to clipboard');
+    }).catch(err => console.error('Copy failed', err));
+  };
+
+  const handleStart = () => {
+    timerRef.current = setTimeout(() => {
+      if (onLongPress) onLongPress(note.id);
+    }, 500); // 500ms long press
+  };
+
+  const handleEnd = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
 
   return (
-    <div className="flex flex-col gap-3 border-2 border-border-light bg-surface p-3 shadow-pixel-container">
+    <div 
+      className={`flex flex-col gap-3 border-2 border-border-light bg-surface p-3 shadow-pixel-container ${selected ? 'bg-primary/10 border-primary' : ''}`}
+      onTouchStart={handleStart}
+      onTouchEnd={handleEnd}
+      onMouseDown={handleStart}
+      onMouseUp={handleEnd}
+      onMouseLeave={handleEnd}
+    >
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3 w-full">
-          <PixelCheckbox />
-          <div className="flex flex-col justify-center min-w-0 w-full cursor-pointer" onClick={() => onView(note.id)}>
+          {(selectionMode || selected) && (
+            <div onClick={(e) => { e.stopPropagation(); onToggleSelect && onToggleSelect(note.id); }}>
+              <PixelCheckbox checked={selected} onChange={() => {}} />
+            </div>
+          )}
+          <div className="flex flex-col justify-center min-w-0 w-full cursor-pointer" onClick={() => selectionMode && onToggleSelect ? onToggleSelect(note.id) : onView(note.id)}>
             <div className="flex items-center gap-2">
               <p className="text-xs font-bold leading-tight text-primary truncate">{note.title || 'Untitled'}</p>
               {note.audio && <span className="material-symbols-outlined text-warning text-sm">mic</span>}
@@ -48,10 +90,13 @@ export const NoteItem: React.FC<NoteItemProps> = ({ note, nodeId, onView, onEdit
         </div>
       </div>
       <div className="flex items-center justify-end gap-2 border-t-2 border-dashed border-border-light pt-2">
-        <PixelButton variant="surface" onClick={() => onEdit(note.id)}>
+        <PixelButton variant="surface" onClick={(e) => { e.stopPropagation(); onEdit(note.id); }}>
           <span className="material-symbols-outlined">edit</span>
         </PixelButton>
-        <PixelButton variant="surface" className="bg-danger" onClick={() => onDelete(note.id, nodeId)}>
+        <PixelButton variant="surface" onClick={handleCopy}>
+          <span className="material-symbols-outlined">content_copy</span>
+        </PixelButton>
+        <PixelButton variant="surface" className="bg-danger" onClick={(e) => { e.stopPropagation(); onDelete(note.id, nodeId); }}>
           <span className="material-symbols-outlined">delete</span>
         </PixelButton>
       </div>

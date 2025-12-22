@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useUIStore } from '../stores/useUIStore';
 import { useFolderStore } from '../stores/useFolderStore';
 import { cn } from '../utils/ui';
@@ -6,17 +6,23 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { PixelButton } from './ui/PixelButton';
 import { PixelModal } from './ui/PixelModal';
 import { PixelInput } from './ui/PixelInput';
+import { PixelCheckbox } from './ui/PixelCheckbox';
 import { useSettingsStore } from '../stores/useSettingsStore';
 
 export const Sidebar: React.FC = () => {
-  const { sidebarOpen, setSidebarOpen } = useUIStore();
-  const { nodes, fetchNodes, addFolder, currentFolderId, setCurrentFolderId, deleteNode } = useFolderStore();
+  const { sidebarOpen, setSidebarOpen, movingItems, setMovingItems } = useUIStore();
+  const { nodes, fetchNodes, addFolder, currentFolderId, setCurrentFolderId, deleteNode, moveNodes } = useFolderStore();
   const { dualDirectory } = useSettingsStore();
   const navigate = useNavigate();
   const location = useLocation();
   
   const [isNewFolderModalOpen, setIsNewFolderModalOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
+  
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean, id: string | null, name: string }>({ isOpen: false, id: null, name: '' });
 
   useEffect(() => {
     if (sidebarOpen) {
@@ -35,12 +41,58 @@ export const Sidebar: React.FC = () => {
     setIsNewFolderModalOpen(false);
   };
 
+  const handleStart = (id: string) => {
+    timerRef.current = setTimeout(() => {
+      setSelectionMode(true);
+      if (!selectedIds.includes(id)) setSelectedIds(prev => [...prev, id]);
+    }, 500);
+  };
+
+  const handleEnd = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  const handleToggle = (id: string) => {
+    if (selectedIds.includes(id)) {
+      const newIds = selectedIds.filter(i => i !== id);
+      setSelectedIds(newIds);
+      if (newIds.length === 0) setSelectionMode(false);
+    } else {
+      setSelectedIds(prev => [...prev, id]);
+    }
+  };
+
+  const handleMoveInit = () => {
+      setMovingItems({
+          ids: selectedIds,
+          type: 'folder', // It could be a mix, but we'll assume folder structure nodes for sidebar
+          source: 'sidebar'
+      });
+      setSelectionMode(false);
+      setSelectedIds([]);
+      setSidebarOpen(false); // Close sidebar to let user navigate
+  };
+
+  const handlePlaceItems = async () => {
+      if (!movingItems) return;
+      await moveNodes(movingItems.ids as string[], currentFolderId);
+      setMovingItems(null);
+  };
+
+  const confirmDelete = async () => {
+    if (deleteConfirm.id) {
+      await deleteNode(deleteConfirm.id);
+      setDeleteConfirm({ isOpen: false, id: null, name: '' });
+    }
+  };
+
   const renderScaffolding = (parentId: string, depth: number = 0) => {
     let children = nodes.filter(n => n.parentId === parentId);
     
-    // Filter based on dualDirectory setting
     if (!dualDirectory) {
-      // Actually, we can just check if we are in tasks view or notes view and what the root is.
       if (isTasksView || parentId === 'root_tasks') {
         children = children.filter(n => n.type === 'task' || n.type === 'folder');
       } else {
@@ -54,13 +106,20 @@ export const Sidebar: React.FC = () => {
           <div key={node.id}>
             <div 
               className={cn(
-                "group flex items-center justify-between p-1 hover:bg-primary/10 cursor-pointer rounded",
-                currentFolderId === node.id && "bg-primary/20"
+                "group flex items-center justify-between p-1 hover:bg-primary/10 cursor-pointer rounded select-none",
+                currentFolderId === node.id && "bg-primary/20",
+                selectedIds.includes(node.id) && "bg-secondary/20 border border-secondary/50"
               )}
-            >
-              <div 
-                className="flex items-center gap-2 flex-1 min-w-0" 
-                onClick={() => {
+              onTouchStart={() => handleStart(node.id)}
+              onTouchEnd={handleEnd}
+              onMouseDown={() => handleStart(node.id)}
+              onMouseUp={handleEnd}
+              onMouseLeave={handleEnd}
+              onClick={(e) => {
+                if (selectionMode) {
+                  e.stopPropagation();
+                  handleToggle(node.id);
+                } else {
                   if (node.type === 'folder') {
                     setCurrentFolderId(node.id);
                     navigate(isTasksView ? '/tasks' : '/notes');
@@ -71,22 +130,31 @@ export const Sidebar: React.FC = () => {
                     navigate(`/tasks/edit/${node.itemRefId}`);
                     setSidebarOpen(false);
                   }
-                }}
-              >
+                }
+              }}
+            >
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                {selectionMode && (
+                   <div className="pointer-events-none">
+                     <PixelCheckbox checked={selectedIds.includes(node.id)} onChange={() => {}} />
+                   </div>
+                )}
                 <span className="material-symbols-outlined text-sm">
                   {node.type === 'folder' ? 'folder' : node.type === 'note' ? 'description' : 'task_alt'}
                 </span>
                 <span className="text-[10px] font-bold truncate">{node.name}</span>
               </div>
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (confirm(`Delete ${node.name}?`)) deleteNode(node.id);
-                }}
-                className="opacity-0 group-hover:opacity-100 text-danger hover:text-primary transition-opacity"
-              >
-                <span className="material-symbols-outlined text-xs">delete</span>
-              </button>
+              {!selectionMode && (
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDeleteConfirm({ isOpen: true, id: node.id, name: node.name });
+                  }}
+                  className="opacity-0 group-hover:opacity-100 text-danger hover:text-primary transition-opacity"
+                >
+                  <span className="material-symbols-outlined text-xs">delete</span>
+                </button>
+              )}
             </div>
             {node.type === 'folder' && renderScaffolding(node.id, depth + 1)}
           </div>
@@ -152,13 +220,32 @@ export const Sidebar: React.FC = () => {
         </div>
 
         <div className="p-4 border-t-4 border-border-dark bg-surface">
-          <PixelButton 
-            className="w-full h-12 text-xs uppercase gap-2"
-            onClick={() => setIsNewFolderModalOpen(true)}
-          >
-            <span className="material-symbols-outlined text-base">create_new_folder</span>
-            New Folder
-          </PixelButton>
+           {selectionMode ? (
+              <div className="flex gap-2">
+                 <PixelButton className="w-full h-12 text-xs uppercase" variant="secondary" onClick={() => { setSelectionMode(false); setSelectedIds([]); }}>
+                    Cancel ({selectedIds.length})
+                 </PixelButton>
+                 <PixelButton className="w-full h-12 text-xs uppercase" onClick={handleMoveInit}>
+                    MOVE
+                 </PixelButton>
+              </div>
+           ) : (
+             !movingItems && (
+              <PixelButton 
+                className="w-full h-12 text-xs uppercase gap-2"
+                onClick={() => setIsNewFolderModalOpen(true)}
+              >
+                <span className="material-symbols-outlined text-base">create_new_folder</span>
+                New Folder
+              </PixelButton>
+             )
+           )}
+           {movingItems && movingItems.source === 'sidebar' && (
+              <div className="flex gap-2">
+                   <PixelButton onClick={() => setMovingItems(null)} variant="secondary" className="flex-1">CANCEL</PixelButton>
+                   <PixelButton onClick={handlePlaceItems} className="flex-1">PLACE HERE</PixelButton>
+              </div>
+           )}
         </div>
       </aside>
 
@@ -176,6 +263,18 @@ export const Sidebar: React.FC = () => {
           />
           <PixelButton type="submit" className="w-full h-12 text-xs">CREATE</PixelButton>
         </form>
+      </PixelModal>
+
+      <PixelModal 
+        isOpen={deleteConfirm.isOpen} 
+        onClose={() => setDeleteConfirm({ ...deleteConfirm, isOpen: false })}
+        title="Confirm Delete"
+      >
+        <p className="mb-4 text-xs text-text-light">Delete "{deleteConfirm.name}"?</p>
+        <div className="flex justify-end gap-2">
+           <PixelButton variant="secondary" onClick={() => setDeleteConfirm({ ...deleteConfirm, isOpen: false })}>CANCEL</PixelButton>
+           <PixelButton className="bg-danger" onClick={confirmDelete}>DELETE</PixelButton>
+        </div>
       </PixelModal>
     </>
   );

@@ -53,7 +53,7 @@ function App() {
     metaThemeColor.setAttribute('content', themeColor);
 
     // Apply font
-    const fontClasses = ['font-display', 'font-sans', 'font-serif', 'font-mono', 'font-Inter', 'font-Roboto', 'font-Open-Sans'];
+    const fontClasses = ['font-display', 'font-sans', 'font-serif', 'font-mono', 'font-Inter', 'font-Roboto', 'font-Open-Sans', 'font-Exo'];
     document.body.classList.remove(...fontClasses);
     document.body.classList.add(settings.font);
 

@@ -15,6 +15,7 @@ export const Settings: React.FC = () => {
     { name: 'Inter', value: 'font-Inter' },
     { name: 'Roboto', value: 'font-Roboto' },
     { name: 'Open Sans', value: 'font-Open-Sans' },
+    { name: 'Exo', value: 'font-Exo' },
   ];
 
   const backgrounds = [
@@ -90,6 +91,16 @@ export const Settings: React.FC = () => {
               type="color" 
               value={settings.secondaryColor}
               onChange={(e) => settings.setSetting('secondaryColor', e.target.value)}
+              className="h-10 w-40 p-1 bg-[#f0fdf4] border-2 border-border-light cursor-pointer"
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-text-light uppercase">Terminal Text Color</span>
+            <input 
+              type="color" 
+              value={settings.terminalTextColor}
+              onChange={(e) => settings.setSetting('terminalTextColor', e.target.value)}
               className="h-10 w-40 p-1 bg-[#f0fdf4] border-2 border-border-light cursor-pointer"
             />
           </div>

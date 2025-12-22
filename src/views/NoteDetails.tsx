@@ -1,13 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useNoteStore } from '../stores/useNoteStore';
+import { useSettingsStore } from '../stores/useSettingsStore';
 import { PixelButton } from '../components/ui/PixelButton';
 import { Note } from '../db/db';
+import { htmlToPlainText } from '../utils/ui';
 
 export const NoteDetails: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { notes, setSearchQuery } = useNoteStore();
+  const settings = useSettingsStore();
   const [note, setNote] = useState<Note | null>(null);
 
   useEffect(() => {
@@ -20,7 +23,8 @@ export const NoteDetails: React.FC = () => {
   if (!note) return <div className="p-4 text-center">Note not found.</div>;
 
   const handleCopy = async () => {
-    const plainText = `${note.title}\n\n${note.content.replace(/<[^>]*>?/gm, '')}`;
+    // Preserve formatting: whitespace and new-lines
+    const plainText = `${note.title}\n\n${htmlToPlainText(note.content)}`; 
     try {
       await navigator.clipboard.writeText(plainText);
       alert('Copied to clipboard!');
@@ -42,14 +46,20 @@ export const NoteDetails: React.FC = () => {
         </p>
         <div className="flex items-center justify-between">
           <h2 className="mb-4 text-lg font-bold text-primary">{note.title}</h2>
-          <PixelButton variant="surface" onClick={handleCopy}>
-            <span className="material-symbols-outlined">content_copy</span>
-          </PixelButton>
+          <div className="flex gap-2">
+             <PixelButton variant="surface" onClick={() => navigate(`/notes/edit/${note.id}`)}>
+              <span className="material-symbols-outlined">edit</span>
+            </PixelButton>
+            <PixelButton variant="surface" onClick={handleCopy}>
+              <span className="material-symbols-outlined">content_copy</span>
+            </PixelButton>
+          </div>
         </div>
       </div>
 
       <div 
-        className="note-content-display mb-6 text-xs font-normal leading-relaxed text-text-light/90 whitespace-pre-wrap break-words"
+        className="note-content-display mb-6 text-xs font-normal leading-relaxed whitespace-pre-wrap break-words"
+        style={{ color: settings.terminalTextColor || settings.textColor }}
         dangerouslySetInnerHTML={{ __html: note.content }}
       />
 

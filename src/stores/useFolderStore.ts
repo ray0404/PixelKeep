@@ -12,6 +12,8 @@ interface FolderState {
   addFolder: (name: string, parentId: string, type: 'note' | 'task') => Promise<void>;
   deleteNode: (id: string) => Promise<void>;
   moveNode: (id: string, newParentId: string) => Promise<void>;
+  moveNodes: (ids: string[], newParentId: string) => Promise<void>;
+  reorderNodes: (nodes: FSNode[]) => Promise<void>;
 }
 
 export const useFolderStore = create<FolderState>((set, get) => ({
@@ -31,6 +33,9 @@ export const useFolderStore = create<FolderState>((set, get) => ({
       .map(n => decrypt(n.data, password))
       .filter(Boolean) as FSNode[];
     
+    // Sort by order
+    nodes.sort((a, b) => (a.order || 0) - (b.order || 0));
+
     set({ nodes, loading: false });
   },
 
@@ -89,5 +94,37 @@ export const useFolderStore = create<FolderState>((set, get) => ({
       await db.fs_nodes.put({ id, data: encryptedUpdatedNode });
       await get().fetchNodes();
     }
+  },
+
+  moveNodes: async (ids, newParentId) => {
+    const { password } = useAuthStore.getState();
+    if (!password) return;
+
+    for (const id of ids) {
+        const encryptedNode = await db.fs_nodes.get(id);
+        if (encryptedNode) {
+            const node = decrypt(encryptedNode.data, password) as FSNode;
+            node.parentId = newParentId;
+            // When moving, maybe put at end of list?
+            node.order = Date.now(); 
+            const encryptedUpdatedNode = encrypt(node, password);
+            await db.fs_nodes.put({ id, data: encryptedUpdatedNode });
+        }
+    }
+    await get().fetchNodes();
+  },
+
+  reorderNodes: async (reorderedNodes) => {
+    const { password } = useAuthStore.getState();
+    if (!password) return;
+
+    for (let i = 0; i < reorderedNodes.length; i++) {
+        const node = reorderedNodes[i];
+        // Only update if order changed
+        node.order = i; 
+        const encryptedUpdatedNode = encrypt(node, password);
+        await db.fs_nodes.put({ id: node.id, data: encryptedUpdatedNode });
+    }
+    await get().fetchNodes();
   }
 }));
