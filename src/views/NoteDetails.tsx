@@ -2,7 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useNoteStore } from '../stores/useNoteStore';
 import { useSettingsStore } from '../stores/useSettingsStore';
+import { useTranscriptionStore } from '../stores/useTranscriptionStore';
 import { PixelButton } from '../components/ui/PixelButton';
+import { PixelModal } from '../components/ui/PixelModal';
+import { DecipherModal } from '../components/DecipherModal';
 import { Note } from '../db/db';
 import { htmlToPlainText } from '../utils/ui';
 
@@ -11,7 +14,11 @@ export const NoteDetails: React.FC = () => {
   const navigate = useNavigate();
   const { notes, setSearchQuery } = useNoteStore();
   const settings = useSettingsStore();
+  const { setDownloading, reset: resetTranscription } = useTranscriptionStore();
   const [note, setNote] = useState<Note | null>(null);
+
+  const [isDecipherModalOpen, setIsDecipherModalOpen] = useState(false);
+  const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(false);
 
   useEffect(() => {
     const found = notes.find(n => n.id === Number(id));
@@ -39,6 +46,27 @@ export const NoteDetails: React.FC = () => {
     navigate('/notes');
   };
 
+  const handleDecipherClick = () => {
+    const hasPermission = localStorage.getItem('whisper_model_permission') === 'true';
+    if (!hasPermission) {
+      setIsPermissionModalOpen(true);
+    } else {
+      startDeciphering();
+    }
+  };
+
+  const startDeciphering = () => {
+    resetTranscription();
+    setIsDecipherModalOpen(true);
+    // The actual transcription trigger will be in Phase 4, but we need the UI ready
+  };
+
+  const grantPermission = () => {
+    localStorage.setItem('whisper_model_permission', 'true');
+    setIsPermissionModalOpen(false);
+    startDeciphering();
+  };
+
   return (
     <div className="p-4 space-y-6">
       <div>
@@ -57,6 +85,27 @@ export const NoteDetails: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {note.audio && (
+        <div className="space-y-4">
+          <div 
+            className="flex flex-col gap-2 border-2 border-border-light bg-surface p-2 shadow-pixel-btn"
+            data-testid="note-audio-player"
+          >
+            <span className="text-[10px] text-text-meta uppercase">Echo Stone Recording</span>
+            <audio src={note.audio} controls className="w-full h-10" />
+          </div>
+          
+          <PixelButton 
+            variant="primary" 
+            className="w-full h-12 text-xs gap-2"
+            onClick={handleDecipherClick}
+          >
+            <span className="material-symbols-outlined">auto_fix_high</span>
+            DECIPHER ECHO
+          </PixelButton>
+        </div>
+      )}
 
       <div 
         className="note-content-display mb-6 text-xs font-normal leading-relaxed whitespace-pre-wrap break-words"
@@ -81,6 +130,37 @@ export const NoteDetails: React.FC = () => {
           Back to Scroll Case
         </PixelButton>
       </div>
+
+      <PixelModal
+        isOpen={isPermissionModalOpen}
+        onClose={() => setIsPermissionModalOpen(false)}
+        title="Invoke the Oracle"
+      >
+        <div className="space-y-4 text-center">
+          <span className="material-symbols-outlined text-6xl text-secondary">
+            history_edu
+          </span>
+          <p className="text-xs leading-relaxed">
+            To decipher this Echo, we must invoke the AI Oracle. This requires a one-time download of approximately <span className="text-secondary font-bold">40MB</span>.
+          </p>
+          <p className="text-[10px] text-text-meta italic">
+            The Oracle will reside locally in your browser, ensuring your voice never leaves this device.
+          </p>
+          <div className="pt-4 flex flex-col gap-3">
+            <PixelButton onClick={grantPermission} className="w-full h-12 text-xs">
+              I ACCEPT THE RITUAL
+            </PixelButton>
+            <PixelButton variant="secondary" onClick={() => setIsPermissionModalOpen(false)} className="w-full h-12 text-xs">
+              NOT NOW
+            </PixelButton>
+          </div>
+        </div>
+      </PixelModal>
+
+      <DecipherModal 
+        isOpen={isDecipherModalOpen} 
+        onClose={() => setIsDecipherModalOpen(false)} 
+      />
     </div>
   );
 };
