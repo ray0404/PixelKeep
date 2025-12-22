@@ -27,7 +27,7 @@ self.addEventListener('message', async (event) => {
         try {
             const { audio } = data;
             
-            self.postMessage({ type: 'STATUS', data: 'Loading Oracle...' });
+            self.postMessage({ type: 'STATUS', data: 'Channeling the Oracle...' });
             
             const p = await getTranscriber((progress: any) => {
                 self.postMessage({ 
