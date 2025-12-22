@@ -159,4 +159,13 @@ body.compact-mode .nav-button {
     line-height: 1rem !important;
 }
 
+/* Magical Deciphering Glow */
+@keyframes magical-glow {
+  0% { filter: drop-shadow(0 0 5px rgba(168, 85, 247, 0.4)); }
+  50% { filter: drop-shadow(0 0 20px rgba(168, 85, 247, 0.8)); }
+  100% { filter: drop-shadow(0 0 5px rgba(168, 85, 247, 0.4)); }
+}
 
+.animate-magical-glow {
+  animation: magical-glow 2s infinite ease-in-out;
+}
