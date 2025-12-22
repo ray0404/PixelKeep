@@ -14,6 +14,7 @@ interface FolderState {
   moveNode: (id: string, newParentId: string) => Promise<void>;
   moveNodes: (ids: string[], newParentId: string) => Promise<void>;
   reorderNodes: (nodes: FSNode[]) => Promise<void>;
+  renameNode: (id: string, newName: string) => Promise<void>;
 }
 
 export const useFolderStore = create<FolderState>((set, get) => ({
@@ -126,5 +127,19 @@ export const useFolderStore = create<FolderState>((set, get) => ({
         await db.fs_nodes.put({ id: node.id, data: encryptedUpdatedNode });
     }
     await get().fetchNodes();
+  },
+
+  renameNode: async (id, newName) => {
+    const { password } = useAuthStore.getState();
+    if (!password) return;
+
+    const encryptedNode = await db.fs_nodes.get(id);
+    if (encryptedNode) {
+      const node = decrypt(encryptedNode.data, password) as FSNode;
+      node.name = newName;
+      const encryptedUpdatedNode = encrypt(node, password);
+      await db.fs_nodes.put({ id, data: encryptedUpdatedNode });
+      await get().fetchNodes();
+    }
   }
 }));
