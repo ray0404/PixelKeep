@@ -1,10 +1,10 @@
 # Track Plan: Enhance Folder Management
 
-## Phase 1: Store & Database Updates
+## Phase 1: Store & Database Updates [checkpoint: dbd66f8]
 - [x] Task: Create `renameNode` function in `useFolderStore`. [5559e46]
-    - [ ] Sub-task: Write unit test for `renameNode`.
-    - [ ] Sub-task: Implement `renameNode` in `useFolderStore.ts` to update `fs_nodes` table.
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Store & Database Updates' (Protocol in workflow.md)
+    - [x] Sub-task: Write unit test for `renameNode`.
+    - [x] Sub-task: Implement `renameNode` in `useFolderStore.ts` to update `fs_nodes` table.
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Store & Database Updates' (Protocol in workflow.md)
 
 ## Phase 2: Folder Renaming UI
 - [ ] Task: Implement "Rename" UI flow in Sidebar.
