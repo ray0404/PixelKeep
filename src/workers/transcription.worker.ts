@@ -15,8 +15,6 @@ let transcriber: any = null;
 
 async function getTranscriber(progress_callback: any) {
     if (transcriber === null) {
-        const modelId = 'openai/whisper-tiny.en';
-        
         // Diagnostic: Check if we can reach the model config directly
         try {
             self.postMessage({ type: 'STATUS', data: 'Contacting the HF Oracle...' });

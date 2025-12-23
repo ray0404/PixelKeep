@@ -14,7 +14,7 @@ export const NoteDetails: React.FC = () => {
   const navigate = useNavigate();
   const { notes, setSearchQuery, getAsset } = useNoteStore();
   const settings = useSettingsStore();
-  const { setDownloading, reset: resetTranscription, transcribe, lastResult, isTranscribing } = useTranscriptionStore();
+  const { reset: resetTranscription, transcribe, lastResult, isTranscribing } = useTranscriptionStore();
   const [note, setNote] = useState<Note | null>(null);
   const [resolvedAudioUrl, setResolvedAudioUrl] = useState<string | null>(null);
 

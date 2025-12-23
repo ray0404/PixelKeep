@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import TranscriptionWorker from '../workers/transcription.worker.ts?worker';
-import { useNoteStore } from './useNoteStore';
 
 interface TranscriptionState {
     isDownloading: boolean;
@@ -21,7 +20,7 @@ interface TranscriptionState {
 
 let worker: Worker | null = null;
 
-export const useTranscriptionStore = create<TranscriptionState>((set, get) => ({
+export const useTranscriptionStore = create<TranscriptionState>((set) => ({
     isDownloading: false,
     progress: 0,
     isTranscribing: false,
@@ -59,7 +58,7 @@ export const useTranscriptionStore = create<TranscriptionState>((set, get) => ({
             const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
             const float32Data = audioBuffer.getChannelData(0);
 
-            worker.onmessage = (event) => {
+            worker!.onmessage = (event) => {
                 const { type, data } = event.data;
                 switch (type) {
                     case 'STATUS':
@@ -81,7 +80,7 @@ export const useTranscriptionStore = create<TranscriptionState>((set, get) => ({
                 }
             };
 
-            worker.postMessage({
+            worker!.postMessage({
                 type: 'TRANSCRIBE',
                 data: { audio: float32Data }
             });

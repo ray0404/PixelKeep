@@ -95,19 +95,31 @@ describe('useTranscriptionStore', () => {
 
     
 
-                    class MockURL {
+                                        class MockURL {
 
     
 
-                        href = 'mock-url';
+                    
 
     
 
-                        constructor(url: string | URL, base?: string | URL) {}
+                                            href = 'mock-url';
 
     
 
-                    }
+                    
+
+    
+
+                                            constructor(_url: string | URL, _base?: string | URL) {}
+
+    
+
+                    
+
+    
+
+                                        }
 
     
 
@@ -141,11 +153,23 @@ describe('useTranscriptionStore', () => {
 
             
 
-            vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+                        vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
 
-                arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(10))
+            
 
-            }));
+                            ok: true,
+
+            
+
+                            arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(10)),
+
+            
+
+                            headers: { get: vi.fn().mockReturnValue('audio/mpeg') }
+
+            
+
+                        }));
 
     
 

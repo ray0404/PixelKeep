@@ -40,7 +40,7 @@ export const useFolderStore = create<FolderState>((set, get) => ({
     set({ nodes, loading: false });
   },
 
-  addFolder: async (name, parentId) => {
+  addFolder: async (name, parentId, _type) => {
     const { password } = useAuthStore.getState();
     if (!password) return;
 
