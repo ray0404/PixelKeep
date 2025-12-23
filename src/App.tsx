@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from './stores/useAuthStore';
 import { Unlock } from './views/Unlock';
 import { Layout } from './components/Layout';
@@ -14,8 +14,42 @@ import { useSettingsStore } from './stores/useSettingsStore';
 import { AlarmManager } from './components/AlarmManager';
 import { requestPersistentStorage } from './utils/storage';
 
+/**
+ * Main application content logic.
+ * Wraps routes and authentication checks inside the Router context.
+ */
+const AppContent: React.FC = () => {
+  const { isAuthenticated } = useAuthStore();
+  const location = useLocation();
+
+  const isShareTarget = location.pathname === '/share-target';
+
+  if (!isAuthenticated && !isShareTarget) {
+    return <Unlock />;
+  }
+
+  return (
+    <>
+      <AlarmManager />
+      <Routes>
+        <Route path="/share-target" element={<ShareTarget />} />
+        <Route path="/notes" element={<Layout title="Pixel Keep"><NotesList /></Layout>} />
+        <Route path="/notes/new" element={<Layout title="New Scroll"><NoteEditor /></Layout>} />
+        <Route path="/notes/edit/:id" element={<Layout title="Edit Scroll"><NoteEditor /></Layout>} />
+        <Route path="/notes/view/:id" element={<Layout title="View Scroll"><NoteDetails /></Layout>} />
+        <Route path="/tasks" element={<Layout title="Quest Log"><QuestLog /></Layout>} />
+        <Route path="/tasks/new" element={<Layout title="New Quest"><TaskEditor /></Layout>} />
+        <Route path="/tasks/edit/:id" element={<Layout title="Edit Quest"><TaskEditor /></Layout>} />
+        <Route path="/settings" element={<Layout title="Settings"><Settings /></Layout>} />
+        <Route path="/" element={<Navigate to="/notes" />} />
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </>
+  );
+};
+
 function App() {
-  const { isAuthenticated, initialize } = useAuthStore();
+  const { initialize } = useAuthStore();
   const settings = useSettingsStore();
 
   useEffect(() => {
@@ -86,26 +120,9 @@ function App() {
     }
   }, [settings]);
 
-  if (!isAuthenticated && window.location.hash !== '#/share-target' && !window.location.hash.startsWith('#/share-target?')) {
-    return <Unlock />;
-  }
-
   return (
     <Router>
-      <AlarmManager />
-      <Routes>
-        <Route path="/share-target" element={<ShareTarget />} />
-        <Route path="/notes" element={<Layout title="Pixel Keep"><NotesList /></Layout>} />
-        <Route path="/notes/new" element={<Layout title="New Scroll"><NoteEditor /></Layout>} />
-        <Route path="/notes/edit/:id" element={<Layout title="Edit Scroll"><NoteEditor /></Layout>} />
-        <Route path="/notes/view/:id" element={<Layout title="View Scroll"><NoteDetails /></Layout>} />
-        <Route path="/tasks" element={<Layout title="Quest Log"><QuestLog /></Layout>} />
-        <Route path="/tasks/new" element={<Layout title="New Quest"><TaskEditor /></Layout>} />
-        <Route path="/tasks/edit/:id" element={<Layout title="Edit Quest"><TaskEditor /></Layout>} />
-        <Route path="/settings" element={<Layout title="Settings"><Settings /></Layout>} />
-        <Route path="/" element={<Navigate to="/notes" />} />
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
+      <AppContent />
     </Router>
   );
 }
