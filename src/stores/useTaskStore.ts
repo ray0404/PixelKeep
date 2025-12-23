@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { db, Task, FSNode } from '../db/db';
 import { encrypt, decrypt } from '../utils/encryption';
 import { useAuthStore } from './useAuthStore';
+import { useSettingsStore } from './useSettingsStore';
 import DecryptionWorker from '../workers/decryption.worker.ts?worker';
 
 interface TaskState {
@@ -22,15 +23,30 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   fetchTasks: async () => {
     const { password } = useAuthStore.getState();
+    const { disableTaskEncryption } = useSettingsStore.getState();
     if (!password) return;
 
     set({ loading: true });
 
+    const encryptedTasks = await db.tasks.toArray();
+
+    if (disableTaskEncryption) {
+      const tasks = encryptedTasks.map(n => {
+        try {
+          // Try to parse as JSON first (unencrypted)
+          return JSON.parse(n.data);
+        } catch (e) {
+          // If that fails, it's probably still encrypted, try to decrypt
+          return decrypt(n.data, password);
+        }
+      }).filter(Boolean) as Task[];
+      set({ tasks, loading: false });
+      return;
+    }
+
     if (!worker) {
       worker = new DecryptionWorker();
     }
-
-    const encryptedTasks = await db.tasks.toArray();
 
     worker.onmessage = (event) => {
       const { data, error } = event.data;
@@ -51,6 +67,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   addTask: async (taskData, parentId) => {
     const { password } = useAuthStore.getState();
+    const { disableTaskEncryption } = useSettingsStore.getState();
     if (!password) return;
 
     const id = Date.now();
@@ -70,8 +87,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       order: id
     };
 
-    const encryptedData = encrypt(task, password);
-    await db.tasks.put({ id, data: encryptedData });
+    const dataToStore = disableTaskEncryption ? JSON.stringify(task) : encrypt(task, password);
+    await db.tasks.put({ id, data: dataToStore });
 
     const fsNode: FSNode = {
       id: `task-${id}`,
@@ -81,7 +98,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       order: id,
       itemRefId: id
     };
-    await db.fs_nodes.put({ id: fsNode.id, data: encrypt(fsNode, password) });
+    const nodeDataToStore = disableTaskEncryption ? JSON.stringify(fsNode) : encrypt(fsNode, password);
+    await db.fs_nodes.put({ id: fsNode.id, data: nodeDataToStore });
 
     // Incremental local update instead of full fetch
     set(state => ({
@@ -91,6 +109,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   updateTask: async (id, updates) => {
     const { password } = useAuthStore.getState();
+    const { disableTaskEncryption } = useSettingsStore.getState();
     if (!password) return;
 
     // Optimistic local update
@@ -100,17 +119,35 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
     const encryptedOld = await db.tasks.get(id);
     if (encryptedOld) {
-      const oldTask = decrypt(encryptedOld.data, password) as Task;
+      let oldTask: Task;
+      try {
+        oldTask = disableTaskEncryption ? JSON.parse(encryptedOld.data) : decrypt(encryptedOld.data, password);
+      } catch (e) {
+        // Fallback if toggled recently
+        oldTask = decrypt(encryptedOld.data, password);
+      }
+
+      if (!oldTask) return;
+
       const updatedTask = { ...oldTask, ...updates, updatedAt: new Date().toISOString() };
-      await db.tasks.put({ id, data: encrypt(updatedTask, password) });
+      const dataToStore = disableTaskEncryption ? JSON.stringify(updatedTask) : encrypt(updatedTask, password);
+      await db.tasks.put({ id, data: dataToStore });
 
       if (updates.title) {
         const nodeId = `task-${id}`;
         const encryptedNode = await db.fs_nodes.get(nodeId);
         if (encryptedNode) {
-          const node = decrypt(encryptedNode.data, password) as FSNode;
-          node.name = updates.title;
-          await db.fs_nodes.put({ id: nodeId, data: encrypt(node, password) });
+          let node: FSNode;
+          try {
+            node = disableTaskEncryption ? JSON.parse(encryptedNode.data) : decrypt(encryptedNode.data, password);
+          } catch (e) {
+            node = decrypt(encryptedNode.data, password);
+          }
+          if (node) {
+            node.name = updates.title;
+            const nodeDataToStore = disableTaskEncryption ? JSON.stringify(node) : encrypt(node, password);
+            await db.fs_nodes.put({ id: nodeId, data: nodeDataToStore });
+          }
         }
       }
       // Removed full fetchTasks() reload
@@ -129,6 +166,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   toggleTask: async (id) => {
     const { password } = useAuthStore.getState();
+    const { disableTaskEncryption } = useSettingsStore.getState();
     if (!password) return;
 
     // Optimistic local toggle
@@ -138,9 +176,18 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
     const encrypted = await db.tasks.get(id);
     if (encrypted) {
-      const task = decrypt(encrypted.data, password) as Task;
-      task.completed = !task.completed;
-      await db.tasks.put({ id, data: encrypt(task, password) });
+      let task: Task;
+      try {
+        task = disableTaskEncryption ? JSON.parse(encrypted.data) : decrypt(encrypted.data, password);
+      } catch (e) {
+        task = decrypt(encrypted.data, password);
+      }
+
+      if (task) {
+        task.completed = !task.completed;
+        const dataToStore = disableTaskEncryption ? JSON.stringify(task) : encrypt(task, password);
+        await db.tasks.put({ id, data: dataToStore });
+      }
     }
   }
 }));

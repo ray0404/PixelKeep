@@ -168,6 +168,26 @@ export const Settings: React.FC = () => {
       </div>
 
       <div className="mb-6 border-2 border-border-light bg-surface p-4 shadow-pixel-container">
+        <h3 className="mb-4 text-xs uppercase text-primary font-bold border-b-2 border-border-light pb-2">Privacy & Security</h3>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-1 pr-4">
+              <span className="text-xs text-text-light uppercase">Disable Quest Encryption</span>
+              <p className="text-[9px] text-text-meta normal-case leading-tight">
+                Increases performance by storing tasks as plaintext. Notes remain encrypted.
+                <br />
+                <span className="text-danger italic">Note: Existing quests stay encrypted until edited.</span>
+              </p>
+            </div>
+            <PixelCheckbox 
+              checked={settings.disableTaskEncryption}
+              onChange={(e) => settings.setSetting('disableTaskEncryption', e.target.checked)}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-6 border-2 border-border-light bg-surface p-4 shadow-pixel-container">
         <h3 className="mb-4 text-xs uppercase text-primary font-bold border-b-2 border-border-light pb-2">General</h3>
         <div className="space-y-4">
           <div className="flex flex-col gap-2">

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { db, FSNode } from '../db/db';
 import { encrypt, decrypt } from '../utils/encryption';
 import { useAuthStore } from './useAuthStore';
+import { useSettingsStore } from './useSettingsStore';
 import DecryptionWorker from '../workers/decryption.worker.ts?worker';
 
 interface FolderState {
@@ -29,15 +30,50 @@ export const useFolderStore = create<FolderState>((set, get) => ({
 
   fetchNodes: async () => {
     const { password } = useAuthStore.getState();
+    const { disableTaskEncryption } = useSettingsStore.getState();
     if (!password) return;
 
     set({ loading: true });
     
+    const encryptedNodes = await db.fs_nodes.toArray();
+
+    if (disableTaskEncryption) {
+      // If task encryption is disabled, some nodes might be plaintext JSON
+      const nodes: FSNode[] = [];
+      const nodesToDecrypt: any[] = [];
+
+      encryptedNodes.forEach(n => {
+        try {
+          const parsed = JSON.parse(n.data);
+          // If it parses and it's a task or folder for tasks, it might be unencrypted
+          // But we need to be careful, folders can be shared.
+          // Actually, if it's plaintext JSON, it's definitely unencrypted.
+          nodes.push(parsed);
+        } catch (e) {
+          nodesToDecrypt.push(n);
+        }
+      });
+
+      if (nodesToDecrypt.length === 0) {
+        nodes.sort((a, b) => (a.order || 0) - (b.order || 0));
+        set({ nodes, loading: false });
+        return;
+      }
+
+      if (!worker) worker = new DecryptionWorker();
+      worker.onmessage = (event) => {
+        const { data } = event.data;
+        const allNodes = [...nodes, ...data as FSNode[]];
+        allNodes.sort((a, b) => (a.order || 0) - (b.order || 0));
+        set({ nodes: allNodes, loading: false });
+      };
+      worker.postMessage({ items: nodesToDecrypt, password, type: 'NODES' });
+      return;
+    }
+
     if (!worker) {
       worker = new DecryptionWorker();
     }
-
-    const encryptedNodes = await db.fs_nodes.toArray();
     
     worker.onmessage = (event) => {
       const { data, error } = event.data;
@@ -104,15 +140,24 @@ export const useFolderStore = create<FolderState>((set, get) => ({
 
   moveNode: async (id, newParentId) => {
     const { password } = useAuthStore.getState();
+    const { disableTaskEncryption } = useSettingsStore.getState();
     if (!password) return;
 
     const encryptedNode = await db.fs_nodes.get(id);
     if (encryptedNode) {
-      const node = decrypt(encryptedNode.data, password) as FSNode;
-      node.parentId = newParentId;
-      const encryptedUpdatedNode = encrypt(node, password);
-      await db.fs_nodes.put({ id, data: encryptedUpdatedNode });
-      await get().fetchNodes();
+      let node: FSNode;
+      try {
+        node = disableTaskEncryption ? JSON.parse(encryptedNode.data) : decrypt(encryptedNode.data, password);
+      } catch (e) {
+        node = decrypt(encryptedNode.data, password);
+      }
+      
+      if (node) {
+        node.parentId = newParentId;
+        const dataToStore = (disableTaskEncryption && (node.type === 'task')) ? JSON.stringify(node) : encrypt(node, password);
+        await db.fs_nodes.put({ id, data: dataToStore });
+        await get().fetchNodes();
+      }
     }
   },
 
@@ -150,15 +195,24 @@ export const useFolderStore = create<FolderState>((set, get) => ({
 
   renameNode: async (id, newName) => {
     const { password } = useAuthStore.getState();
+    const { disableTaskEncryption } = useSettingsStore.getState();
     if (!password) return;
 
     const encryptedNode = await db.fs_nodes.get(id);
     if (encryptedNode) {
-      const node = decrypt(encryptedNode.data, password) as FSNode;
-      node.name = newName;
-      const encryptedUpdatedNode = encrypt(node, password);
-      await db.fs_nodes.put({ id, data: encryptedUpdatedNode });
-      await get().fetchNodes();
+      let node: FSNode;
+      try {
+        node = disableTaskEncryption ? JSON.parse(encryptedNode.data) : decrypt(encryptedNode.data, password);
+      } catch (e) {
+        node = decrypt(encryptedNode.data, password);
+      }
+      
+      if (node) {
+        node.name = newName;
+        const dataToStore = (disableTaskEncryption && (node.type === 'task')) ? JSON.stringify(node) : encrypt(node, password);
+        await db.fs_nodes.put({ id, data: dataToStore });
+        await get().fetchNodes();
+      }
     }
   }
 }));
