@@ -17,6 +17,7 @@ interface SettingsState {
   dualDirectory: boolean;
   includeTitleInCopy: boolean;
   disableTaskEncryption: boolean;
+  hasSeenEncryptionPrompt: boolean;
   defaultAlarmSound: { data: string; name: string } | null;
   setTheme: (theme: 'Standard' | 'Pixel') => void;
   setSetting: (key: keyof Omit<SettingsState, 'setTheme' | 'setSetting'>, value: any) => void;
@@ -39,7 +40,8 @@ export const useSettingsStore = create<SettingsState>()(
       wordWrap: true,
       dualDirectory: false,
       includeTitleInCopy: true,
-      disableTaskEncryption: false,
+      disableTaskEncryption: true,
+      hasSeenEncryptionPrompt: false,
       defaultAlarmSound: null,
 
       setTheme: (theme) => set({ theme }),

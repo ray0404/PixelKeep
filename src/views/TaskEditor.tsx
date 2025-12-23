@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTaskStore } from '../stores/useTaskStore';
 import { useFolderStore } from '../stores/useFolderStore';
+import { useSettingsStore } from '../stores/useSettingsStore';
 import { PixelInput } from '../components/ui/PixelInput';
 import { PixelButton } from '../components/ui/PixelButton';
 import { PixelCheckbox } from '../components/ui/PixelCheckbox';
+import { PixelModal } from '../components/ui/PixelModal';
 
 export const TaskEditor: React.FC = () => {
   const { id } = useParams();
@@ -12,7 +14,12 @@ export const TaskEditor: React.FC = () => {
   const { addTask, updateTask } = useTaskStore();
   const task = useTaskStore(state => state.tasks.find(t => t.id === Number(id)));
   const { currentFolderId } = useFolderStore();
+  const settings = useSettingsStore();
+
+  const [showPrompt, setShowPrompt] = useState(!settings.hasSeenEncryptionPrompt);
   
+  // Local state for form inputs ensures immediate responsiveness and prevents 
+  // global store updates on every keystroke, which would cause expensive re-renders.
   const [title, setTitle] = useState('');
   const [time, setTime] = useState('');
   const [completionType, setCompletionType] = useState<'at' | 'before_by'>('at');
@@ -70,8 +77,18 @@ export const TaskEditor: React.FC = () => {
     navigate('/tasks');
   };
 
+  const handlePromptClose = (enableEncryption: boolean) => {
+    settings.setSetting('hasSeenEncryptionPrompt', true);
+    if (enableEncryption) {
+      settings.setSetting('disableTaskEncryption', false);
+    }
+    setShowPrompt(false);
+  };
+
   return (
+    <>
     <form onSubmit={handleSave} className="p-4 space-y-4">
+      {/* ... existing form content ... */}
       <label className="flex flex-col gap-2">
         <span className="text-xs uppercase text-primary font-bold">Quest</span>
         <PixelInput 
@@ -230,5 +247,35 @@ export const TaskEditor: React.FC = () => {
         </PixelButton>
       </div>
     </form>
+
+    <PixelModal 
+      isOpen={showPrompt} 
+      onClose={() => handlePromptClose(false)}
+      title="Quest Security"
+    >
+      <div className="space-y-4 text-center">
+        <span className="material-symbols-outlined text-6xl text-primary">security</span>
+        <h3 className="text-sm font-bold uppercase">Encryption Notice</h3>
+        <p className="text-[10px] text-text-light/80 leading-relaxed">
+          By default, Quests are stored in <span className="text-primary font-bold">High Performance Mode</span> (plaintext). 
+          This ensures a fluid 8-bit experience on all devices.
+        </p>
+        <p className="text-[10px] text-text-light/80 leading-relaxed">
+          You can enable <span className="text-secondary font-bold">Ancient Scroll Encryption</span> for Quests, 
+          but you will likely experience significant sluggishness as your log grows.
+        </p>
+        <p className="text-[9px] text-text-meta italic">Note: Notes are always encrypted.</p>
+        
+        <div className="flex flex-col gap-3 pt-2">
+          <PixelButton className="h-12 w-full text-[10px]" onClick={() => handlePromptClose(false)}>
+            KEEP HIGH PERFORMANCE (RECOMMENDED)
+          </PixelButton>
+          <PixelButton variant="secondary" className="h-10 w-full text-[9px]" onClick={() => handlePromptClose(true)}>
+            ENABLE ENCRYPTION (MAY BE SLOW)
+          </PixelButton>
+        </div>
+      </div>
+    </PixelModal>
+    </>
   );
 };
