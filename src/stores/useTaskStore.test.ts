@@ -26,6 +26,25 @@ vi.mock('./useAuthStore', () => ({
   }
 }));
 
+// Mock Worker
+vi.mock('../workers/decryption.worker.ts?worker', () => {
+  return {
+    default: class {
+      onmessage: (e: any) => void = () => {};
+      postMessage(data: any) {
+        // Simulate worker behavior
+        setTimeout(() => {
+          const { items, type } = data;
+          const { decrypt } = require('../utils/encryption');
+          const decrypted = items.map((i: any) => decrypt(i.data, 'test-password'));
+          this.onmessage({ data: { type, data: decrypted } });
+        }, 0);
+      }
+      terminate() {}
+    }
+  };
+});
+
 describe('useTaskStore', () => {
   beforeEach(() => {
     vi.clearAllMocks();

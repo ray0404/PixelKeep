@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { db, FSNode } from '../db/db';
 import { encrypt, decrypt } from '../utils/encryption';
 import { useAuthStore } from './useAuthStore';
+import DecryptionWorker from '../workers/decryption.worker.ts?worker';
 
 interface FolderState {
   nodes: FSNode[];
@@ -17,6 +18,8 @@ interface FolderState {
   renameNode: (id: string, newName: string) => Promise<void>;
 }
 
+let worker: Worker | null = null;
+
 export const useFolderStore = create<FolderState>((set, get) => ({
   nodes: [],
   loading: false,
@@ -29,15 +32,31 @@ export const useFolderStore = create<FolderState>((set, get) => ({
     if (!password) return;
 
     set({ loading: true });
-    const encryptedNodes = await db.fs_nodes.toArray();
-    const nodes = encryptedNodes
-      .map(n => decrypt(n.data, password))
-      .filter(Boolean) as FSNode[];
     
-    // Sort by order
-    nodes.sort((a, b) => (a.order || 0) - (b.order || 0));
+    if (!worker) {
+      worker = new DecryptionWorker();
+    }
 
-    set({ nodes, loading: false });
+    const encryptedNodes = await db.fs_nodes.toArray();
+    
+    worker.onmessage = (event) => {
+      const { data, error } = event.data;
+      if (error) {
+        console.error("Worker decryption error:", error);
+        set({ loading: false });
+        return;
+      }
+      
+      const nodes = data as FSNode[];
+      nodes.sort((a, b) => (a.order || 0) - (b.order || 0));
+      set({ nodes, loading: false });
+    };
+
+    worker.postMessage({
+      items: encryptedNodes,
+      password,
+      type: 'NODES'
+    });
   },
 
   addFolder: async (name, parentId, _type) => {

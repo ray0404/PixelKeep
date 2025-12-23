@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { db, Task, FSNode } from '../db/db';
 import { encrypt, decrypt } from '../utils/encryption';
 import { useAuthStore } from './useAuthStore';
+import DecryptionWorker from '../workers/decryption.worker.ts?worker';
 
 interface TaskState {
   tasks: Task[];
@@ -13,6 +14,8 @@ interface TaskState {
   toggleTask: (id: number) => Promise<void>;
 }
 
+let worker: Worker | null = null;
+
 export const useTaskStore = create<TaskState>((set, get) => ({
   tasks: [],
   loading: false,
@@ -22,12 +25,28 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     if (!password) return;
 
     set({ loading: true });
+
+    if (!worker) {
+      worker = new DecryptionWorker();
+    }
+
     const encryptedTasks = await db.tasks.toArray();
-    const tasks = encryptedTasks
-      .map(n => decrypt(n.data, password))
-      .filter(Boolean) as Task[];
-    
-    set({ tasks, loading: false });
+
+    worker.onmessage = (event) => {
+      const { data, error } = event.data;
+      if (error) {
+        console.error("Worker task decryption error:", error);
+        set({ loading: false });
+        return;
+      }
+      set({ tasks: data as Task[], loading: false });
+    };
+
+    worker.postMessage({
+      items: encryptedTasks,
+      password,
+      type: 'TASKS'
+    });
   },
 
   addTask: async (taskData, parentId) => {
