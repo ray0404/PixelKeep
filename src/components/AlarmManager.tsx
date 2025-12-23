@@ -12,17 +12,23 @@ export const AlarmManager: React.FC = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      const now = new Date();
-      tasks.forEach(task => {
-        if (!task.completed && task.alarm.enabled && task.time) {
-          const dueTime = new Date(task.time).getTime();
-          const triggerOffset = (task.alarm.trigger || 0) * 60000;
-          const alarmTime = dueTime - triggerOffset;
+    // Only scan tasks that actually have alarms enabled to reduce processing
+    const activeTasksWithAlarms = tasks.filter(t => !t.completed && t.alarm.enabled && t.time);
+    
+    if (activeTasksWithAlarms.length === 0) return;
 
-          if (now.getTime() >= alarmTime && now.getTime() < alarmTime + 30000) {
-            triggerAlarm(task);
-          }
+    const interval = setInterval(() => {
+      const now = new Date().getTime();
+      
+      activeTasksWithAlarms.forEach(task => {
+        const dueTime = new Date(task.time!).getTime();
+        const triggerOffset = (task.alarm.trigger || 0) * 60000;
+        const alarmTime = dueTime - triggerOffset;
+
+        // Check if now is within a 1-minute window of the alarm time
+        // and ensure we don't trigger if it's already active
+        if (now >= alarmTime && now < alarmTime + 60000) {
+          triggerAlarm(task);
         }
       });
     }, 30000);
