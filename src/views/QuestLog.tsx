@@ -27,11 +27,19 @@ export const QuestLog: React.FC = () => {
     }
   }, []);
 
-  const folderNodes = nodes.filter(n => n.parentId === currentFolderId && n.type === 'folder');
-  const taskNodes = nodes.filter(n => n.parentId === currentFolderId && n.type === 'task');
+  const folderNodes = React.useMemo(() => 
+    nodes.filter(n => n.parentId === currentFolderId && n.type === 'folder'),
+    [nodes, currentFolderId]
+  );
 
-  const filteredTasks = tasks.filter(task => 
-    taskNodes.some(node => node.itemRefId === task.id)
+  const taskNodes = React.useMemo(() => 
+    nodes.filter(n => n.parentId === currentFolderId && n.type === 'task'),
+    [nodes, currentFolderId]
+  );
+
+  const filteredTasks = React.useMemo(() => 
+    tasks.filter(task => taskNodes.some(node => node.itemRefId === task.id)),
+    [tasks, taskNodes]
   );
 
   const handleCreateFolder = async (e: React.FormEvent) => {

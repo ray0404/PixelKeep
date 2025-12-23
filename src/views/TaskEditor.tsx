@@ -9,7 +9,8 @@ import { PixelCheckbox } from '../components/ui/PixelCheckbox';
 export const TaskEditor: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { tasks, addTask, updateTask } = useTaskStore();
+  const { addTask, updateTask } = useTaskStore();
+  const task = useTaskStore(state => state.tasks.find(t => t.id === Number(id)));
   const { currentFolderId } = useFolderStore();
   
   const [title, setTitle] = useState('');
@@ -26,24 +27,21 @@ export const TaskEditor: React.FC = () => {
   const [noSound, setNoSound] = useState(false);
 
   useEffect(() => {
-    if (id) {
-      const task = tasks.find(t => t.id === Number(id));
-      if (task) {
-        setTitle(task.title);
-        setTime(task.time ? new Date(task.time).toISOString().slice(0, 16) : '');
-        setCompletionType(task.completionType || 'at');
-        setStartTime(task.startTime ? new Date(task.startTime).toISOString().slice(0, 16) : '');
-        setLocation(task.location);
-        setPeople(task.people);
-        setNotes(task.notes);
-        setAlarmEnabled(task.alarm.enabled);
-        setAlarmTrigger(task.alarm.trigger);
-        setAlarmRepeat(task.alarm.repeat);
-        setAlarmAudio(task.alarm.audio);
-        setNoSound(task.alarm.noSound || false);
-      }
+    if (id && task) {
+      setTitle(task.title);
+      setTime(task.time ? new Date(task.time).toISOString().slice(0, 16) : '');
+      setCompletionType(task.completionType || 'at');
+      setStartTime(task.startTime ? new Date(task.startTime).toISOString().slice(0, 16) : '');
+      setLocation(task.location);
+      setPeople(task.people);
+      setNotes(task.notes);
+      setAlarmEnabled(task.alarm.enabled);
+      setAlarmTrigger(task.alarm.trigger);
+      setAlarmRepeat(task.alarm.repeat);
+      setAlarmAudio(task.alarm.audio);
+      setNoSound(task.alarm.noSound || false);
     }
-  }, [id, tasks]);
+  }, [id, task]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
