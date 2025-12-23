@@ -12,6 +12,12 @@ export const AlarmManager: React.FC = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  useEffect(() => {
     // Only scan tasks that actually have alarms enabled to reduce processing
     const activeTasksWithAlarms = tasks.filter(t => !t.completed && t.alarm.enabled && t.time);
     
@@ -54,10 +60,22 @@ export const AlarmManager: React.FC = () => {
     }
 
     if (Notification.permission === 'granted') {
-      new Notification(`Quest Due: ${task.title}`, {
+      const notificationTitle = `Quest Due: ${task.title}`;
+      const notificationOptions = {
         body: task.notes || 'Time to complete your quest!',
-        icon: '/icons/icon-192.png'
-      });
+        icon: '/icons/icon-192.png',
+        badge: '/icons/icon-192.png',
+        tag: `task-alarm-${task.id}`,
+        renotify: true
+      };
+
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.ready.then(registration => {
+          registration.showNotification(notificationTitle, notificationOptions);
+        });
+      } else {
+        new Notification(notificationTitle, notificationOptions);
+      }
     }
   };
 

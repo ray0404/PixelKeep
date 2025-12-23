@@ -17,7 +17,18 @@ interface TaskState {
 
 let worker: Worker | null = null;
 
-export const useTaskStore = create<TaskState>((set, get) => ({
+const updateBadge = (tasks: Task[]) => {
+  if ('setAppBadge' in navigator) {
+    const activeCount = tasks.filter(t => !t.completed).length;
+    if (activeCount > 0) {
+      (navigator as any).setAppBadge(activeCount).catch((e: any) => console.error("Badge set failed:", e));
+    } else {
+      (navigator as any).clearAppBadge().catch((e: any) => console.error("Badge clear failed:", e));
+    }
+  }
+};
+
+export const useTaskStore = create<TaskState>((set) => ({
   tasks: [],
   loading: false,
 
@@ -40,6 +51,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           return decrypt(n.data, password);
         }
       }).filter(Boolean) as Task[];
+      updateBadge(tasks);
       set({ tasks, loading: false });
       return;
     }
@@ -55,7 +67,9 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         set({ loading: false });
         return;
       }
-      set({ tasks: data as Task[], loading: false });
+      const tasks = data as Task[];
+      updateBadge(tasks);
+      set({ tasks, loading: false });
     };
 
     worker.postMessage({
@@ -68,7 +82,12 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   addTask: async (taskData, parentId) => {
     const { password } = useAuthStore.getState();
     const { disableTaskEncryption } = useSettingsStore.getState();
-    if (!password) return;
+    
+    // Only block if encryption is required but no password provided
+    if (!disableTaskEncryption && !password) {
+      console.error("Encryption enabled but no password available.");
+      return;
+    }
 
     const id = Date.now();
     const task: Task = {
@@ -87,7 +106,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       order: id
     };
 
-    const dataToStore = disableTaskEncryption ? JSON.stringify(task) : encrypt(task, password);
+    const dataToStore = disableTaskEncryption ? JSON.stringify(task) : encrypt(task, password!);
     await db.tasks.put({ id, data: dataToStore });
 
     const fsNode: FSNode = {
@@ -98,13 +117,15 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       order: id,
       itemRefId: id
     };
-    const nodeDataToStore = disableTaskEncryption ? JSON.stringify(fsNode) : encrypt(fsNode, password);
+    const nodeDataToStore = disableTaskEncryption ? JSON.stringify(fsNode) : encrypt(fsNode, password!);
     await db.fs_nodes.put({ id: fsNode.id, data: nodeDataToStore });
 
     // Incremental local update instead of full fetch
-    set(state => ({
-      tasks: [...state.tasks, task]
-    }));
+    set(state => {
+      const newTasks = [...state.tasks, task];
+      updateBadge(newTasks);
+      return { tasks: newTasks };
+    });
   },
 
   updateTask: async (id, updates) => {
@@ -113,9 +134,11 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     if (!password) return;
 
     // Optimistic local update
-    set(state => ({
-      tasks: state.tasks.map(t => t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t)
-    }));
+    set(state => {
+      const newTasks = state.tasks.map(t => t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t);
+      updateBadge(newTasks);
+      return { tasks: newTasks };
+    });
 
     const encryptedOld = await db.tasks.get(id);
     if (encryptedOld) {
@@ -156,9 +179,11 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   deleteTask: async (id, nodeId) => {
     // Immediate local removal
-    set(state => ({
-      tasks: state.tasks.filter(t => t.id !== id)
-    }));
+    set(state => {
+      const newTasks = state.tasks.filter(t => t.id !== id);
+      updateBadge(newTasks);
+      return { tasks: newTasks };
+    });
     
     await db.tasks.delete(id);
     await db.fs_nodes.delete(nodeId);
@@ -170,9 +195,11 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     if (!password) return;
 
     // Optimistic local toggle
-    set(state => ({
-      tasks: state.tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t)
-    }));
+    set(state => {
+      const newTasks = state.tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t);
+      updateBadge(newTasks);
+      return { tasks: newTasks };
+    });
 
     const encrypted = await db.tasks.get(id);
     if (encrypted) {

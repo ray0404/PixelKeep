@@ -9,8 +9,10 @@ import { NoteEditor } from './views/NoteEditor';
 import { TaskEditor } from './views/TaskEditor';
 import { NoteDetails } from './views/NoteDetails';
 import { Settings } from './views/Settings';
+import { ShareTarget } from './views/ShareTarget';
 import { useSettingsStore } from './stores/useSettingsStore';
 import { AlarmManager } from './components/AlarmManager';
+import { requestPersistentStorage } from './utils/storage';
 
 function App() {
   const { isAuthenticated, initialize } = useAuthStore();
@@ -18,6 +20,7 @@ function App() {
 
   useEffect(() => {
     initialize();
+    requestPersistentStorage();
   }, [initialize]);
 
   useEffect(() => {
@@ -83,7 +86,7 @@ function App() {
     }
   }, [settings]);
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated && window.location.hash !== '#/share-target' && !window.location.hash.startsWith('#/share-target?')) {
     return <Unlock />;
   }
 
@@ -91,6 +94,7 @@ function App() {
     <Router>
       <AlarmManager />
       <Routes>
+        <Route path="/share-target" element={<ShareTarget />} />
         <Route path="/notes" element={<Layout title="Pixel Keep"><NotesList /></Layout>} />
         <Route path="/notes/new" element={<Layout title="New Scroll"><NoteEditor /></Layout>} />
         <Route path="/notes/edit/:id" element={<Layout title="Edit Scroll"><NoteEditor /></Layout>} />

@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useTaskStore } from './useTaskStore';
 import { db } from '../db/db';
-import { useAuthStore } from './useAuthStore';
 import { encrypt } from '../utils/encryption';
 
 vi.mock('../db/db', () => ({

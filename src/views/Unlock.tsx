@@ -1,17 +1,29 @@
 import React, { useState } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/useAuthStore';
 import { PixelButton } from '../components/ui/PixelButton';
 import { PixelInput } from '../components/ui/PixelInput';
 
 export const Unlock: React.FC = () => {
   const [password, setPassword] = useState('');
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { unlock } = useAuthStore();
 
   const handleUnlock = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const success = await unlock(password);
-      if (!success) {
+      if (success) {
+        const redirect = searchParams.get('redirect');
+        if (redirect) {
+          // Reconstruct search params excluding redirect
+          const params = new URLSearchParams(searchParams);
+          params.delete('redirect');
+          const search = params.toString();
+          navigate(`${redirect}${search ? '?' + search : ''}`);
+        }
+      } else {
         alert('Wrong password.');
       }
     } catch (err: any) {
