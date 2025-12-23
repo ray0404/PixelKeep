@@ -40,7 +40,7 @@ export interface Task {
   order?: number;
 }
 
-export interface ImageAsset {
+export interface Asset {
   id: string;
   data: string; // Encrypted binary data
   mimeType: string;
@@ -64,21 +64,51 @@ export class PixelKeepDB extends Dexie {
   notes!: Table<{ id: number; data: string }>; // Encrypted Note
   tasks!: Table<{ id: number; data: string }>; // Encrypted Task
   folders!: Table<{ id: string; data: string }>; // Encrypted Folder
-  images!: Table<ImageAsset>; // Images are stored as Assets
+  assets!: Table<Asset>; // Encrypted Assets (images, audio)
   fs_nodes!: Table<{ id: string; data: string }>; // Encrypted FSNode
   meta!: Table<Meta>;
 
   constructor() {
     super('PixelPWADatabase');
-    this.version(3).stores({
+    
+    // Version 4 was intended for assets rename, but hung. 
+    // Version 5 forces a clean state for the assets table.
+    this.version(5).stores({
       notes: 'id',
       tasks: 'id',
       meta: 'key',
       fs_nodes: 'id',
-      images: 'id',
+      assets: 'id',
       folders: 'id'
     });
   }
 }
 
 export const db = new PixelKeepDB();
+
+console.log('Database instance created. Initializing...');
+
+// Global database error/blocked handlers
+db.on('blocked', () => {
+  console.warn('DATABASE BLOCKED: Another tab is holding the connection open.');
+  alert('The Ritual is Blocked! Please close other tabs of PixelKeep.');
+});
+
+// Attempt to open with a timeout
+const openDb = async () => {
+    try {
+        console.log('Opening database...');
+        // Dexie.open() returns a promise that resolves when the DB is ready
+        await db.open();
+        console.log('Database opened successfully.');
+    } catch (err: any) {
+        console.error('FAILED TO OPEN DATABASE:', err);
+        if (err.name === 'VersionError') {
+            console.log('Version mismatch, attempting to delete and restart...');
+            // In extreme cases, we might need to delete, but let's try to just alert first
+        }
+        alert(`Oracle Database Error: ${err.message}`);
+    }
+};
+
+openDb();

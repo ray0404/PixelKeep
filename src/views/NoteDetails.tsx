@@ -12,10 +12,11 @@ import { htmlToPlainText } from '../utils/ui';
 export const NoteDetails: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { notes, setSearchQuery } = useNoteStore();
+  const { notes, setSearchQuery, getAsset } = useNoteStore();
   const settings = useSettingsStore();
   const { setDownloading, reset: resetTranscription, transcribe, lastResult, isTranscribing } = useTranscriptionStore();
   const [note, setNote] = useState<Note | null>(null);
+  const [resolvedAudioUrl, setResolvedAudioUrl] = useState<string | null>(null);
 
   const [isDecipherModalOpen, setIsDecipherModalOpen] = useState(false);
   const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(false);
@@ -24,8 +25,23 @@ export const NoteDetails: React.FC = () => {
     const found = notes.find(n => n.id === Number(id));
     if (found) {
       setNote(found);
+      if (found.audio) {
+          if (found.audio.startsWith('asset:')) {
+              getAsset(found.audio.replace('asset:', '')).then(blob => {
+                  if (blob) setResolvedAudioUrl(URL.createObjectURL(blob));
+              });
+          } else {
+              setResolvedAudioUrl(found.audio);
+          }
+      }
     }
-  }, [id, notes]);
+
+    return () => {
+        if (resolvedAudioUrl && resolvedAudioUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(resolvedAudioUrl);
+        }
+    };
+  }, [id, notes, getAsset]);
 
   useEffect(() => {
     if (lastResult && !isTranscribing && note) {
@@ -68,10 +84,10 @@ export const NoteDetails: React.FC = () => {
   };
 
   const startDeciphering = () => {
-    if (note?.audio) {
+    if (resolvedAudioUrl) {
         resetTranscription();
         setIsDecipherModalOpen(true);
-        transcribe(note.audio);
+        transcribe(resolvedAudioUrl);
     }
   };
 
@@ -100,14 +116,14 @@ export const NoteDetails: React.FC = () => {
         </div>
       </div>
 
-      {note.audio && (
+      {resolvedAudioUrl && (
         <div className="space-y-4">
           <div 
             className="flex flex-col gap-2 border-2 border-border-light bg-surface p-2 shadow-pixel-btn"
             data-testid="note-audio-player"
           >
             <span className="text-[10px] text-text-meta uppercase">Echo Stone Recording</span>
-            <audio src={note.audio} controls className="w-full h-10" />
+            <audio src={resolvedAudioUrl} controls className="w-full h-10" />
           </div>
           
           <PixelButton 

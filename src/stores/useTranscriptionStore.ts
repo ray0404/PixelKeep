@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import TranscriptionWorker from '../workers/transcription.worker.ts?worker';
+import { useNoteStore } from './useNoteStore';
 
 interface TranscriptionState {
     isDownloading: boolean;
@@ -37,14 +39,21 @@ export const useTranscriptionStore = create<TranscriptionState>((set, get) => ({
         set({ isTranscribing: true, status: 'Preparing the Altar...', lastResult: null, error: null });
         try {
             if (!worker) {
-                worker = new Worker(
-                    new URL('../workers/transcription.worker.ts', import.meta.url),
-                    { type: 'module' }
-                );
+                worker = new TranscriptionWorker();
             }
 
-            // Fetch the audio and convert to required format (float32)
+            // Step 1: Fetch Audio
+            set({ status: 'Gathering the Echo...' });
             const response = await fetch(audioUrl);
+            if (!response.ok) throw new Error(`Failed to fetch audio: ${response.statusText}`);
+            
+            const contentType = response.headers.get('content-type');
+            if (contentType?.includes('text/html')) {
+                throw new Error('Ritual Error: Received HTML instead of audio. The Echo has faded.');
+            }
+
+            // Step 2: Decode Audio
+            set({ status: 'Interpreting the Waves...' });
             const arrayBuffer = await response.arrayBuffer();
             const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
             const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
@@ -73,12 +82,13 @@ export const useTranscriptionStore = create<TranscriptionState>((set, get) => ({
             };
 
             worker.postMessage({
-                type: 'TRANScribe',
+                type: 'TRANSCRIBE',
                 data: { audio: float32Data }
             });
 
         } catch (error: any) {
-            set({ isTranscribing: false, error: error.message });
+            console.error('Transcription Store Error:', error);
+            set({ isTranscribing: false, error: `Store Error: ${error.message}` });
         }
     },
 

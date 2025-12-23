@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { db, Note, FSNode } from '../db/db';
+import { db, Note, FSNode, Asset } from '../db/db';
 import { encrypt, decrypt } from '../utils/encryption';
 import { useAuthStore } from './useAuthStore';
 
@@ -12,6 +12,8 @@ interface NoteState {
   addNote: (title: string, content: string, tags: string[], parentId: string) => Promise<void>;
   updateNote: (id: number, updates: Partial<Note>) => Promise<void>;
   deleteNote: (id: number, nodeId: string) => Promise<void>;
+  saveAsset: (id: string, blob: Blob) => Promise<void>;
+  getAsset: (id: string) => Promise<Blob | null>;
 }
 
 export const useNoteStore = create<NoteState>((set, get) => ({
@@ -20,6 +22,39 @@ export const useNoteStore = create<NoteState>((set, get) => ({
   searchQuery: '',
 
   setSearchQuery: (query) => set({ searchQuery: query }),
+
+  saveAsset: async (id, blob) => {
+    const { password } = useAuthStore.getState();
+    if (!password) return;
+
+    const reader = new FileReader();
+    const dataPromise = new Promise<string>((resolve) => {
+      reader.onload = () => resolve(reader.result as string);
+      reader.readAsDataURL(blob);
+    });
+    const base64Data = await dataPromise;
+
+    const asset: Asset = {
+      id,
+      data: encrypt(base64Data, password),
+      mimeType: blob.type
+    };
+    await db.assets.put(asset);
+  },
+
+  getAsset: async (id) => {
+    const { password } = useAuthStore.getState();
+    if (!password) return null;
+
+    const asset = await db.assets.get(id);
+    if (!asset) return null;
+
+    const decryptedData = decrypt(asset.data, password) as string;
+    if (!decryptedData) return null;
+
+    const res = await fetch(decryptedData);
+    return await res.blob();
+  },
 
   fetchNotes: async () => {
     const { password } = useAuthStore.getState();

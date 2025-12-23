@@ -9,9 +9,14 @@ export const Unlock: React.FC = () => {
 
   const handleUnlock = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = await unlock(password);
-    if (!success) {
-      alert('Wrong password.');
+    try {
+      const success = await unlock(password);
+      if (!success) {
+        alert('Wrong password.');
+      }
+    } catch (err: any) {
+      console.error('Unlock error:', err);
+      alert(`The Ritual Failed: ${err.message}`);
     }
   };
 

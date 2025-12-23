@@ -11,7 +11,7 @@ import { cn } from '../utils/ui';
 export const NoteEditor: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { notes, addNote, updateNote } = useNoteStore();
+  const { notes, addNote, updateNote, saveAsset } = useNoteStore();
   const { currentFolderId } = useFolderStore();
   
   const [title, setTitle] = useState('');
@@ -21,7 +21,7 @@ export const NoteEditor: React.FC = () => {
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isAudioModalOpen, setIsAudioModalOpen] = useState(false);
 
-  const { isRecording, audioUrl, startRecording, stopRecording, clearAudio, setAudioUrl } = useAudioRecorder();
+  const { isRecording, audioUrl, audioBlob, startRecording, stopRecording, clearAudio, setAudioUrl } = useAudioRecorder();
 
   useEffect(() => {
     if (id) {
@@ -29,7 +29,17 @@ export const NoteEditor: React.FC = () => {
       if (note) {
         setTitle(note.title);
         setTags(note.tags.join(', '));
-        if (note.audio) setAudioUrl(note.audio);
+        // audioUrl will be handled by a resolver in NoteDetails, 
+        // but in editor we might need to fetch it if it's an asset: link
+        if (note.audio) {
+            if (note.audio.startsWith('asset:')) {
+                useNoteStore.getState().getAsset(note.audio.replace('asset:', '')).then(blob => {
+                    if (blob) setAudioUrl(URL.createObjectURL(blob));
+                });
+            } else {
+                setAudioUrl(note.audio);
+            }
+        }
         if (editorRef.current) editorRef.current.innerHTML = note.content;
       }
     }
@@ -40,15 +50,29 @@ export const NoteEditor: React.FC = () => {
     const tagList = tags.split(',').map(t => t.trim()).filter(Boolean);
     const htmlContent = editorRef.current?.innerHTML || '';
     
+    let finalAudioUrl = audioUrl;
+    if (audioBlob) {
+        const assetId = `audio-${Date.now()}`;
+        await saveAsset(assetId, audioBlob);
+        finalAudioUrl = `asset:${assetId}`;
+    }
+
     if (id) {
       await updateNote(Number(id), { 
         title, 
         content: htmlContent, 
         tags: tagList,
-        audio: audioUrl || undefined
+        audio: finalAudioUrl || undefined
       });
     } else {
       await addNote(title, htmlContent, tagList, currentFolderId);
+      // If new note has audio, we need to update it with the asset link
+      if (finalAudioUrl?.startsWith('asset:')) {
+          const lastNote = useNoteStore.getState().notes.sort((a,b) => b.id - a.id)[0];
+          if (lastNote) {
+              await updateNote(lastNote.id, { audio: finalAudioUrl });
+          }
+      }
     }
     navigate('/notes');
   };
