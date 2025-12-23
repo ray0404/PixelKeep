@@ -64,12 +64,20 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     };
     await db.fs_nodes.put({ id: fsNode.id, data: encrypt(fsNode, password) });
 
-    await get().fetchTasks();
+    // Incremental local update instead of full fetch
+    set(state => ({
+      tasks: [...state.tasks, task]
+    }));
   },
 
   updateTask: async (id, updates) => {
     const { password } = useAuthStore.getState();
     if (!password) return;
+
+    // Optimistic local update
+    set(state => ({
+      tasks: state.tasks.map(t => t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t)
+    }));
 
     const encryptedOld = await db.tasks.get(id);
     if (encryptedOld) {
@@ -86,26 +94,34 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           await db.fs_nodes.put({ id: nodeId, data: encrypt(node, password) });
         }
       }
-      await get().fetchTasks();
+      // Removed full fetchTasks() reload
     }
   },
 
   deleteTask: async (id, nodeId) => {
+    // Immediate local removal
+    set(state => ({
+      tasks: state.tasks.filter(t => t.id !== id)
+    }));
+    
     await db.tasks.delete(id);
     await db.fs_nodes.delete(nodeId);
-    await get().fetchTasks();
   },
 
   toggleTask: async (id) => {
     const { password } = useAuthStore.getState();
     if (!password) return;
 
+    // Optimistic local toggle
+    set(state => ({
+      tasks: state.tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t)
+    }));
+
     const encrypted = await db.tasks.get(id);
     if (encrypted) {
       const task = decrypt(encrypted.data, password) as Task;
       task.completed = !task.completed;
       await db.tasks.put({ id, data: encrypt(task, password) });
-      await get().fetchTasks();
     }
   }
 }));
