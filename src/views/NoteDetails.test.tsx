@@ -95,4 +95,26 @@ describe('NoteDetails', () => {
 
     expect(screen.getByText(/Invoke the Oracle/i)).toBeInTheDocument();
   });
+
+  it('shows progress bar when transcribing this note', () => {
+    (useTranscriptionStore as any).mockReturnValue({
+        isTranscribing: true,
+        activeNoteId: 1,
+        progress: 50,
+        status: 'Reading...',
+        reset: vi.fn(),
+        transcribe: vi.fn(),
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/notes/1']}>
+        <Routes>
+          <Route path="/notes/:id" element={<NoteDetails />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText(/DECIPHERING ECHO/i)).toBeInTheDocument();
+    expect(screen.getByText(/Reading.../i)).toBeInTheDocument();
+  });
 });
