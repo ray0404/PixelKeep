@@ -68,10 +68,38 @@ export const useTranscriptionStore = create<TranscriptionState>((set, get) => ({
             source.start();
             
             const resampledBuffer = await offlineCtx.startRendering();
-            const float32Data = resampledBuffer.getChannelData(0);
+            let float32Data = resampledBuffer.getChannelData(0);
             
             // Clean up temp context
             tempCtx.close();
+
+            // VAD Optimization: Trim Silence
+            // Find start
+            const threshold = 0.015;
+            let startIndex = 0;
+            let endIndex = float32Data.length;
+
+            for (let i = 0; i < float32Data.length; i++) {
+                if (Math.abs(float32Data[i]) > threshold) {
+                    startIndex = i;
+                    break;
+                }
+            }
+
+            // Find end
+            for (let i = float32Data.length - 1; i >= 0; i--) {
+                if (Math.abs(float32Data[i]) > threshold) {
+                    endIndex = i + 1; // +1 to include the sample
+                    break;
+                }
+            }
+
+            // Apply trim if we found valid audio
+            if (startIndex < endIndex) {
+                 const originalDuration = float32Data.length;
+                 float32Data = float32Data.slice(startIndex, endIndex);
+                 console.log(`VAD: Trimmed ${(originalDuration - float32Data.length) / 16000}s of silence.`);
+            }
 
             worker!.onmessage = (event) => {
                 const { type, data } = event.data;

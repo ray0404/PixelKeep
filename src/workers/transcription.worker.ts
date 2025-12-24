@@ -49,6 +49,7 @@ async function getTranscriber(progress_callback: any) {
         transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-base.en', {
             progress_callback,
             device,
+            quantized: true,
         });
     }
     return transcriber;

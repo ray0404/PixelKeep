@@ -16,6 +16,8 @@
 - [x] Task: Upgrade transcription model configuration for improved accuracy e317bf2
 - [x] Task: Fix transcription accuracy by implementing 16kHz resampling (OfflineAudioContext) f4f8660
 - [x] Task: Implement WebGPU support for hardware-accelerated transcription
+- [x] Task: Enforce model quantization (q8) for memory efficiency
+- [x] Task: Implement Audio VAD (Voice Activity Detection) to trim silence
 - [x] Task: Integrate granular status feedback into the `NoteEditor` and `NoteDetails` views e317bf2
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: UI/UX and State Management' (Protocol in workflow.md)
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: UI/UX and State Management' (Protocol in workflow.md)
