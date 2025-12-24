@@ -9,7 +9,7 @@ interface NoteState {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   fetchNotes: () => Promise<void>;
-  addNote: (title: string, content: string, tags: string[], parentId: string) => Promise<void>;
+  addNote: (title: string, content: string, tags: string[], parentId: string, audio?: string) => Promise<void>;
   updateNote: (id: number, updates: Partial<Note>) => Promise<void>;
   deleteNote: (id: number, nodeId: string) => Promise<void>;
   saveAsset: (id: string, blob: Blob) => Promise<void>;
@@ -69,7 +69,7 @@ export const useNoteStore = create<NoteState>((set, get) => ({
     set({ notes, loading: false });
   },
 
-  addNote: async (title, content, tags, parentId) => {
+  addNote: async (title, content, tags, parentId, audio) => {
     const { password } = useAuthStore.getState();
     if (!password) return;
 
@@ -79,6 +79,7 @@ export const useNoteStore = create<NoteState>((set, get) => ({
       title,
       content,
       tags,
+      audio,
       updatedAt: new Date().toISOString(),
       order: id
     };

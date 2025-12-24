@@ -47,12 +47,7 @@ export const NoteEditor: React.FC = () => {
         if (editorRef.current) editorRef.current.innerHTML = note.content;
       }
     }
-    
-    // Reset transcription store when component unmounts
-    return () => {
-      transcription.reset();
-    }
-  }, [id, notes, setAudioUrl, setAudioBlob, transcription.reset]);
+  }, [id, notes, setAudioUrl, setAudioBlob]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -242,11 +237,11 @@ export const NoteEditor: React.FC = () => {
         title="Add Image"
       >
         <div className="space-y-4">
-          <PixelButton className="w-full h-12 text-xs gap-2" onClick={() => document.getElementById('camera-input')?.click()}>
+          <PixelButton type="button" className="w-full h-12 text-xs gap-2" onClick={() => document.getElementById('camera-input')?.click()}>
             <span className="material-symbols-outlined">photo_camera</span>
             TAKE PICTURE
           </PixelButton>
-          <PixelButton className="w-full h-12 text-xs gap-2" variant="secondary" onClick={() => document.getElementById('gallery-input')?.click()}>
+          <PixelButton type="button" className="w-full h-12 text-xs gap-2" variant="secondary" onClick={() => document.getElementById('gallery-input')?.click()}>
             <span className="material-symbols-outlined">image</span>
             IMPORT FROM DEVICE
           </PixelButton>
@@ -276,6 +271,7 @@ export const NoteEditor: React.FC = () => {
       >
         <div className="space-y-4">
           <PixelButton 
+            type="button"
             className={cn("w-full h-12 text-xs gap-2", isRecording && "bg-danger")} 
             onClick={() => {
               if (isRecording) stopRecording();
@@ -286,7 +282,7 @@ export const NoteEditor: React.FC = () => {
             <span className="material-symbols-outlined">{isRecording ? 'stop_circle' : 'mic'}</span>
             {isRecording ? 'STOP RECORDING' : 'RECORD FROM MIC'}
           </PixelButton>
-          <PixelButton className="w-full h-12 text-xs gap-2" variant="secondary" onClick={() => document.getElementById('audio-upload-input')?.click()}>
+          <PixelButton type="button" className="w-full h-12 text-xs gap-2" variant="secondary" onClick={() => document.getElementById('audio-upload-input')?.click()}>
             <span className="material-symbols-outlined">upload_file</span>
             IMPORT AUDIO FILE
           </PixelButton>
