@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 
-export const useAudioRecorder = () => {
+export const useAudioRecorder = (onStop?: (blob: Blob) => void) => {
   const [isRecording, setIsRecording] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
@@ -26,6 +26,7 @@ export const useAudioRecorder = () => {
         setAudioBlob(blob);
         setAudioUrl(url);
         stream.getTracks().forEach(track => track.stop());
+        if (onStop) onStop(blob);
       };
 
       mediaRecorder.start();
