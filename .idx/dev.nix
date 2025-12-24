@@ -36,7 +36,7 @@
       previews = {
         web = {
           # Example: run "npm run dev" with PORT set to IDX's defined port for previews
-          command = [ "npm" "run" "dev" "--" "--port" "$PORT" "--host" "0.0.0.0" ];
+          command = [ "npx" "vite" "--port" "$PORT" "--host" "0.0.0.0" ];
           manager = "web";
           env = {
             # Environment variables for your command
