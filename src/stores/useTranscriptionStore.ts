@@ -44,7 +44,7 @@ export const useTranscriptionStore = create<TranscriptionState>((set) => ({
             }
 
             // Step 1: Decode Audio (No more fetching!)
-            set({ status: 'Interpreting the Waves...', step: 'processing' });
+            set({ status: 'Interpreting the Waves...', step: 'processing', progress: 10 });
             const arrayBuffer = await audioBlob.arrayBuffer();
             const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
             const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
@@ -54,13 +54,20 @@ export const useTranscriptionStore = create<TranscriptionState>((set) => ({
                 const { type, data } = event.data;
                 switch (type) {
                     case 'STATUS':
-                        set({ status: data });
+                        let newProgress = 0;
+                        if (data === 'Reading the Echo...') newProgress = 30;
+                        else if (data === 'Scribing the Vision...') newProgress = 70;
+                        
+                        set((state) => ({ 
+                            status: data,
+                            progress: newProgress > 0 ? newProgress : state.progress
+                        }));
                         break;
                     case 'DOWNLOAD_PROGRESS':
                         if (data.status === 'progress') {
                             set({ isDownloading: true, step: 'downloading', progress: data.progress });
                         } else if (data.status === 'ready' || data.status === 'done') {
-                            set({ isDownloading: false, step: 'transcribing', progress: 100 });
+                            set({ isDownloading: false, step: 'transcribing', progress: 50 });
                         }
                         break;
                     case 'COMPLETE':
