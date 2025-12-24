@@ -6,8 +6,8 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Analysis and Benchmarking' (Protocol in workflow.md) 1772be8
 
 ## Phase 2: Processing Pipeline Optimization
-- [ ] Task: Refactor Web Worker communication to use Transferable objects and minimize data copying
-- [ ] Task: Implement parallel processing or more efficient sequencing for encryption/decryption and transcription
+- [x] Task: Refactor Web Worker communication to use Transferable objects and minimize data copying 1772be8
+- [~] Task: Implement parallel processing or more efficient sequencing for encryption/decryption and transcription
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Processing Pipeline Optimization' (Protocol in workflow.md)
 
 ## Phase 3: UI/UX and State Management

@@ -73,7 +73,7 @@ export const useTranscriptionStore = create<TranscriptionState>((set) => ({
             worker!.postMessage({
                 type: 'TRANSCRIBE',
                 data: { audio: float32Data }
-            });
+            }, [float32Data.buffer]);
 
         } catch (error: any) {
             console.error('Transcription Store Error:', error);
