@@ -55,9 +55,23 @@ export const useTranscriptionStore = create<TranscriptionState>((set, get) => ({
             // Step 1: Decode Audio (No more fetching!)
             set({ status: 'Interpreting the Waves...', step: 'processing', progress: 10 });
             const arrayBuffer = await audioBlob.arrayBuffer();
-            const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-            const float32Data = audioBuffer.getChannelData(0);
+            
+            // First decode at system rate to get duration and data
+            const tempCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const decodedBuffer = await tempCtx.decodeAudioData(arrayBuffer);
+
+            // Then resample to 16000Hz (Required by Whisper) using OfflineAudioContext
+            const offlineCtx = new OfflineAudioContext(1, decodedBuffer.duration * 16000, 16000);
+            const source = offlineCtx.createBufferSource();
+            source.buffer = decodedBuffer;
+            source.connect(offlineCtx.destination);
+            source.start();
+            
+            const resampledBuffer = await offlineCtx.startRendering();
+            const float32Data = resampledBuffer.getChannelData(0);
+            
+            // Clean up temp context
+            tempCtx.close();
 
             worker!.onmessage = (event) => {
                 const { type, data } = event.data;
