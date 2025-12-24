@@ -22,9 +22,7 @@ export const NoteEditor: React.FC = () => {
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isAudioModalOpen, setIsAudioModalOpen] = useState(false);
 
-  const { isRecording, audioUrl, audioBlob, startRecording, stopRecording, clearAudio, setAudioUrl, setAudioBlob } = useAudioRecorder((blob) => {
-    transcription.transcribe(blob);
-  });
+  const { isRecording, audioUrl, audioBlob, startRecording, stopRecording, clearAudio, setAudioUrl, setAudioBlob } = useAudioRecorder();
   const transcription = useTranscriptionStore();
 
   useEffect(() => {
@@ -101,7 +99,6 @@ export const NoteEditor: React.FC = () => {
     const url = URL.createObjectURL(file);
     setAudioUrl(url);
     setAudioBlob(file);
-    transcription.transcribe(file);
     setIsAudioModalOpen(false);
   };
   

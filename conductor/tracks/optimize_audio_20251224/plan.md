@@ -7,13 +7,14 @@
 
 ## Phase 2: Processing Pipeline Optimization
 - [x] Task: Refactor Web Worker communication to use Transferable objects and minimize data copying 1772be8
-- [x] Task: Implement parallel processing or more efficient sequencing for encryption/decryption and transcription ddfccf5
+- [x] Task: Implement manual transcription trigger with efficient background processing (Reverted automation based on user feedback) fe4cd23
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Processing Pipeline Optimization' (Protocol in workflow.md)
 
 ## Phase 3: UI/UX and State Management
 - [ ] Task: Update `useTranscriptionStore` to support granular status tracking (e.g., `PROCESSING_STEPS`)
+- [ ] Task: Implement `PixelProgressBar` component and integrate into `NoteEditor`
+- [ ] Task: Upgrade transcription model configuration for improved accuracy
 - [ ] Task: Integrate granular status feedback into the `NoteEditor` and `NoteDetails` views
-- [ ] Task: Implement `PixelProgressBar` or similar UI component to show transcription progress
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: UI/UX and State Management' (Protocol in workflow.md)
 
 ## Phase 4: Final Verification and Polish
