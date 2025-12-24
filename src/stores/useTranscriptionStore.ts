@@ -20,8 +20,16 @@ interface TranscriptionState {
 }
 
 let worker: Worker | null = null;
+let progressInterval: any = null;
 
-export const useTranscriptionStore = create<TranscriptionState>((set) => ({
+const clearProgressInterval = () => {
+    if (progressInterval) {
+        clearInterval(progressInterval);
+        progressInterval = null;
+    }
+};
+
+export const useTranscriptionStore = create<TranscriptionState>((set, get) => ({
     isDownloading: false,
     progress: 0,
     isTranscribing: false,
@@ -37,6 +45,7 @@ export const useTranscriptionStore = create<TranscriptionState>((set) => ({
     setError: (error) => set({ error }),
 
     transcribe: async (audioBlob) => {
+        clearProgressInterval();
         set({ isTranscribing: true, step: 'preparing', status: 'Preparing the Altar...', lastResult: null, error: null });
         try {
             if (!worker) {
@@ -54,14 +63,22 @@ export const useTranscriptionStore = create<TranscriptionState>((set) => ({
                 const { type, data } = event.data;
                 switch (type) {
                     case 'STATUS':
-                        let newProgress = 0;
-                        if (data === 'Reading the Echo...') newProgress = 30;
-                        else if (data === 'Scribing the Vision...') newProgress = 70;
-                        
-                        set((state) => ({ 
-                            status: data,
-                            progress: newProgress > 0 ? newProgress : state.progress
-                        }));
+                        if (data === 'Reading the Echo...') {
+                            set({ status: data, progress: 30 });
+                            // Start fake progress
+                            clearProgressInterval();
+                            progressInterval = setInterval(() => {
+                                const { progress } = get();
+                                if (progress < 90) {
+                                    set({ progress: progress + (Math.random() * 2) });
+                                }
+                            }, 200);
+                        } else if (data === 'Scribing the Vision...') {
+                             // Keep the interval going but update status
+                             set({ status: data });
+                        } else {
+                            set({ status: data });
+                        }
                         break;
                     case 'DOWNLOAD_PROGRESS':
                         if (data.status === 'progress') {
@@ -71,9 +88,11 @@ export const useTranscriptionStore = create<TranscriptionState>((set) => ({
                         }
                         break;
                     case 'COMPLETE':
+                        clearProgressInterval();
                         set({ isTranscribing: false, step: 'complete', progress: 100, status: 'Ritual Complete', lastResult: data });
                         break;
                     case 'ERROR':
+                        clearProgressInterval();
                         set({ isTranscribing: false, step: 'error', error: data });
                         break;
                 }
@@ -85,18 +104,22 @@ export const useTranscriptionStore = create<TranscriptionState>((set) => ({
             }, [float32Data.buffer]);
 
         } catch (error: any) {
+            clearProgressInterval();
             console.error('Transcription Store Error:', error);
             set({ isTranscribing: false, step: 'error', error: `Store Error: ${error.message}` });
         }
     },
 
-    reset: () => set({ 
-        isDownloading: false, 
-        progress: 0, 
-        isTranscribing: false, 
-        status: '', 
-        step: 'idle',
-        error: null,
-        lastResult: null 
-    }),
+    reset: () => {
+        clearProgressInterval();
+        set({ 
+            isDownloading: false, 
+            progress: 0, 
+            isTranscribing: false, 
+            status: '', 
+            step: 'idle', 
+            error: null,
+            lastResult: null 
+        });
+    },
 }));
