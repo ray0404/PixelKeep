@@ -34,8 +34,21 @@ async function getTranscriber(progress_callback: any) {
         }
 
         self.postMessage({ type: 'STATUS', data: 'Channeling the Oracle...' });
+        
+        // Check for WebGPU support
+        let device = 'wasm';
+        try {
+            if ('gpu' in navigator) {
+                device = 'webgpu';
+                self.postMessage({ type: 'STATUS', data: 'Oracle communing with GPU Spirits...' });
+            }
+        } catch (e) {
+            console.warn('WebGPU check failed, falling back to WASM');
+        }
+
         transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-base.en', {
             progress_callback,
+            device,
         });
     }
     return transcriber;
