@@ -1,0 +1,8 @@
+{
+  "keybindings": [
+    {
+      "command": "toggleFocus",
+      "key": "ctrl+i"
+    }
+  ]
+}
