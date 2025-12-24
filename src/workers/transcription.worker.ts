@@ -4,8 +4,9 @@ import { pipeline, env } from '@xenova/transformers';
 env.allowLocalModels = false;
 env.allowRemoteModels = true;
 env.useBrowserCache = true;
-env.remoteHost = 'https://huggingface.co';
-env.remotePathTemplate = '{model}/resolve/{revision}/{file}';
+
+// The remotePathTemplate is removed to allow the library to use its default.
+// This is to fix a bug where the path was being constructed incorrectly.
 
 // Also set WASM paths to CDN to prevent local 404s
 const CDN_URL = 'https://cdn.jsdelivr.net/npm/@xenova/transformers/dist/';

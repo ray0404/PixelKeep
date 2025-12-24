@@ -6,6 +6,7 @@ import { PixelInput } from '../components/ui/PixelInput';
 import { PixelButton } from '../components/ui/PixelButton';
 import { PixelModal } from '../components/ui/PixelModal';
 import { useAudioRecorder } from '../hooks/useAudioRecorder';
+import { useTranscriptionStore } from '../stores/useTranscriptionStore';
 import { cn } from '../utils/ui';
 
 export const NoteEditor: React.FC = () => {
@@ -21,7 +22,8 @@ export const NoteEditor: React.FC = () => {
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isAudioModalOpen, setIsAudioModalOpen] = useState(false);
 
-  const { isRecording, audioUrl, audioBlob, startRecording, stopRecording, clearAudio, setAudioUrl } = useAudioRecorder();
+  const { isRecording, audioUrl, audioBlob, startRecording, stopRecording, clearAudio, setAudioUrl, setAudioBlob } = useAudioRecorder();
+  const transcription = useTranscriptionStore();
 
   useEffect(() => {
     if (id) {
@@ -29,12 +31,13 @@ export const NoteEditor: React.FC = () => {
       if (note) {
         setTitle(note.title);
         setTags(note.tags.join(', '));
-        // audioUrl will be handled by a resolver in NoteDetails, 
-        // but in editor we might need to fetch it if it's an asset: link
         if (note.audio) {
             if (note.audio.startsWith('asset:')) {
                 useNoteStore.getState().getAsset(note.audio.replace('asset:', '')).then(blob => {
-                    if (blob) setAudioUrl(URL.createObjectURL(blob));
+                    if (blob) {
+                        setAudioUrl(URL.createObjectURL(blob));
+                        setAudioBlob(blob);
+                    }
                 });
             } else {
                 setAudioUrl(note.audio);
@@ -43,7 +46,12 @@ export const NoteEditor: React.FC = () => {
         if (editorRef.current) editorRef.current.innerHTML = note.content;
       }
     }
-  }, [id, notes, setAudioUrl]);
+    
+    // Reset transcription store when component unmounts
+    return () => {
+      transcription.reset();
+    }
+  }, [id, notes, setAudioUrl, setAudioBlob, transcription.reset]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,7 +59,7 @@ export const NoteEditor: React.FC = () => {
     const htmlContent = editorRef.current?.innerHTML || '';
     
     let finalAudioUrl = audioUrl;
-    if (audioBlob) {
+    if (audioBlob && !audioUrl?.startsWith('asset:')) {
         const assetId = `audio-${Date.now()}`;
         await saveAsset(assetId, audioBlob);
         finalAudioUrl = `asset:${assetId}`;
@@ -65,14 +73,7 @@ export const NoteEditor: React.FC = () => {
         audio: finalAudioUrl || undefined
       });
     } else {
-      await addNote(title, htmlContent, tagList, currentFolderId);
-      // If new note has audio, we need to update it with the asset link
-      if (finalAudioUrl?.startsWith('asset:')) {
-          const lastNote = useNoteStore.getState().notes.sort((a,b) => b.id - a.id)[0];
-          if (lastNote) {
-              await updateNote(lastNote.id, { audio: finalAudioUrl });
-          }
-      }
+      await addNote(title, htmlContent, tagList, currentFolderId, finalAudioUrl || undefined);
     }
     navigate('/notes');
   };
@@ -97,8 +98,24 @@ export const NoteEditor: React.FC = () => {
     if (!file) return;
     const url = URL.createObjectURL(file);
     setAudioUrl(url);
+    setAudioBlob(file);
     setIsAudioModalOpen(false);
   };
+  
+  const handleTranscribe = () => {
+    if (audioBlob) {
+      transcription.transcribe(audioBlob);
+    }
+  }
+
+  const insertTranscription = () => {
+    if (editorRef.current && transcription.lastResult) {
+        editorRef.current.focus();
+        // Insert a paragraph with a horizontal rule for separation
+        const htmlToInsert = `<hr class="my-4 border-border-light"><p>${transcription.lastResult}</p>`;
+        document.execCommand('insertHTML', false, htmlToInsert);
+    }
+  }
 
   // Image handling state
   const [selectedImage, setSelectedImage] = useState<HTMLImageElement | null>(null);
@@ -157,6 +174,35 @@ export const NoteEditor: React.FC = () => {
               <button type="button" onClick={clearAudio} className="text-danger text-[10px] uppercase hover:underline">Remove</button>
             </div>
             <audio src={audioUrl} controls className="w-full h-10" />
+            
+            {/* --- TRANSCRIPTION UI --- */}
+            <div className="pt-2">
+              <PixelButton type="button" className="w-full h-8 text-[10px]" onClick={handleTranscribe} disabled={transcription.isTranscribing || !audioBlob}>
+                  {transcription.isTranscribing ? 'TRANSCRIBING...' : 'TRANSCRIBE AUDIO'}
+              </PixelButton>
+              
+              {transcription.isDownloading && (
+                 <div className="text-center text-[9px] text-text-meta pt-2">Downloading Model: {transcription.progress.toFixed(0)}%</div>
+              )}
+
+              {transcription.status && !transcription.isTranscribing && (
+                  <div className="text-center text-[9px] text-text-meta pt-2">{transcription.status}</div>
+              )}
+
+              {transcription.error && (
+                  <div className="text-center text-[9px] text-danger pt-2">Error: {transcription.error}</div>
+              )}
+
+              {transcription.lastResult && (
+                  <div className="pt-2 space-y-2">
+                      <p className="text-[10px] bg-background-dark p-2 border-2 border-border-dark italic">{transcription.lastResult}</p>
+                      <PixelButton type="button" variant='secondary' className="w-full h-8 text-[10px]" onClick={insertTranscription}>
+                          INSERT INTO NOTE
+                      </PixelButton>
+                  </div>
+              )}
+            </div>
+            {/* --- END TRANSCRIPTION UI --- */}
           </div>
         )}
 

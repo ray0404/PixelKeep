@@ -17,6 +17,7 @@ export const NoteDetails: React.FC = () => {
   const { reset: resetTranscription, transcribe, lastResult, isTranscribing } = useTranscriptionStore();
   const [note, setNote] = useState<Note | null>(null);
   const [resolvedAudioUrl, setResolvedAudioUrl] = useState<string | null>(null);
+  const [resolvedAudioBlob, setResolvedAudioBlob] = useState<Blob | null>(null);
 
   const [isDecipherModalOpen, setIsDecipherModalOpen] = useState(false);
   const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(false);
@@ -28,10 +29,15 @@ export const NoteDetails: React.FC = () => {
       if (found.audio) {
           if (found.audio.startsWith('asset:')) {
               getAsset(found.audio.replace('asset:', '')).then(blob => {
-                  if (blob) setResolvedAudioUrl(URL.createObjectURL(blob));
+                  if (blob) {
+                    setResolvedAudioUrl(URL.createObjectURL(blob));
+                    setResolvedAudioBlob(blob);
+                  }
               });
           } else {
               setResolvedAudioUrl(found.audio);
+              // Note: For non-asset audio, we can't transcribe.
+              // This could be improved by fetching the URL and creating a blob.
           }
       }
     }
@@ -46,7 +52,6 @@ export const NoteDetails: React.FC = () => {
   useEffect(() => {
     if (lastResult && !isTranscribing && note) {
         const decipheredText = `\n\n--- DECIPHERED ECHO ---\n${lastResult}`;
-        // Check if already deciphered to avoid double appending (basic check)
         if (!note.content.includes('DECIPHERED ECHO')) {
             useNoteStore.getState().updateNote(note.id, {
                 content: note.content + decipheredText
@@ -58,7 +63,6 @@ export const NoteDetails: React.FC = () => {
   if (!note) return <div className="p-4 text-center">Note not found.</div>;
 
   const handleCopy = async () => {
-    // Preserve formatting: whitespace and new-lines
     const content = htmlToPlainText(note.content);
     const plainText = settings.includeTitleInCopy ? `${note.title}\n\n${content}` : content; 
     try {
@@ -84,10 +88,10 @@ export const NoteDetails: React.FC = () => {
   };
 
   const startDeciphering = () => {
-    if (resolvedAudioUrl) {
+    if (resolvedAudioBlob) {
         resetTranscription();
         setIsDecipherModalOpen(true);
-        transcribe(resolvedAudioUrl);
+        transcribe(resolvedAudioBlob);
     }
   };
 
@@ -126,14 +130,14 @@ export const NoteDetails: React.FC = () => {
             <audio src={resolvedAudioUrl} controls className="w-full h-10" />
           </div>
           
-          <PixelButton 
+         {resolvedAudioBlob && <PixelButton 
             variant="primary" 
             className="w-full h-12 text-xs gap-2"
             onClick={handleDecipherClick}
           >
             <span className="material-symbols-outlined">auto_fix_high</span>
             DECIPHER ECHO
-          </PixelButton>
+          </PixelButton>}
         </div>
       )}
 

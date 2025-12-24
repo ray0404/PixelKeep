@@ -14,7 +14,7 @@ interface TranscriptionState {
     setTranscribing: (isTranscribing: boolean) => void;
     setStatus: (status: string) => void;
     setError: (error: string | null) => void;
-    transcribe: (audioUrl: string) => Promise<void>;
+    transcribe: (audioBlob: Blob) => Promise<void>;
     reset: () => void;
 }
 
@@ -34,26 +34,16 @@ export const useTranscriptionStore = create<TranscriptionState>((set) => ({
     setStatus: (status) => set({ status }),
     setError: (error) => set({ error }),
 
-    transcribe: async (audioUrl) => {
+    transcribe: async (audioBlob) => {
         set({ isTranscribing: true, status: 'Preparing the Altar...', lastResult: null, error: null });
         try {
             if (!worker) {
                 worker = new TranscriptionWorker();
             }
 
-            // Step 1: Fetch Audio
-            set({ status: 'Gathering the Echo...' });
-            const response = await fetch(audioUrl);
-            if (!response.ok) throw new Error(`Failed to fetch audio: ${response.statusText}`);
-            
-            const contentType = response.headers.get('content-type');
-            if (contentType?.includes('text/html')) {
-                throw new Error('Ritual Error: Received HTML instead of audio. The Echo has faded.');
-            }
-
-            // Step 2: Decode Audio
+            // Step 1: Decode Audio (No more fetching!)
             set({ status: 'Interpreting the Waves...' });
-            const arrayBuffer = await response.arrayBuffer();
+            const arrayBuffer = await audioBlob.arrayBuffer();
             const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
             const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
             const float32Data = audioBuffer.getChannelData(0);
