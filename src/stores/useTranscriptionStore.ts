@@ -6,6 +6,7 @@ interface TranscriptionState {
     progress: number;
     isTranscribing: boolean;
     status: string;
+    step: 'idle' | 'preparing' | 'downloading' | 'processing' | 'transcribing' | 'complete' | 'error';
     error: string | null;
     lastResult: string | null;
     
@@ -25,6 +26,7 @@ export const useTranscriptionStore = create<TranscriptionState>((set) => ({
     progress: 0,
     isTranscribing: false,
     status: '',
+    step: 'idle',
     error: null,
     lastResult: null,
 
@@ -35,14 +37,14 @@ export const useTranscriptionStore = create<TranscriptionState>((set) => ({
     setError: (error) => set({ error }),
 
     transcribe: async (audioBlob) => {
-        set({ isTranscribing: true, status: 'Preparing the Altar...', lastResult: null, error: null });
+        set({ isTranscribing: true, step: 'preparing', status: 'Preparing the Altar...', lastResult: null, error: null });
         try {
             if (!worker) {
                 worker = new TranscriptionWorker();
             }
 
             // Step 1: Decode Audio (No more fetching!)
-            set({ status: 'Interpreting the Waves...' });
+            set({ status: 'Interpreting the Waves...', step: 'processing' });
             const arrayBuffer = await audioBlob.arrayBuffer();
             const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
             const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
@@ -56,16 +58,16 @@ export const useTranscriptionStore = create<TranscriptionState>((set) => ({
                         break;
                     case 'DOWNLOAD_PROGRESS':
                         if (data.status === 'progress') {
-                            set({ isDownloading: true, progress: data.progress });
+                            set({ isDownloading: true, step: 'downloading', progress: data.progress });
                         } else if (data.status === 'ready' || data.status === 'done') {
-                            set({ isDownloading: false, progress: 100 });
+                            set({ isDownloading: false, step: 'transcribing', progress: 100 });
                         }
                         break;
                     case 'COMPLETE':
-                        set({ isTranscribing: false, progress: 100, status: 'Ritual Complete', lastResult: data });
+                        set({ isTranscribing: false, step: 'complete', progress: 100, status: 'Ritual Complete', lastResult: data });
                         break;
                     case 'ERROR':
-                        set({ isTranscribing: false, error: data });
+                        set({ isTranscribing: false, step: 'error', error: data });
                         break;
                 }
             };
@@ -77,7 +79,7 @@ export const useTranscriptionStore = create<TranscriptionState>((set) => ({
 
         } catch (error: any) {
             console.error('Transcription Store Error:', error);
-            set({ isTranscribing: false, error: `Store Error: ${error.message}` });
+            set({ isTranscribing: false, step: 'error', error: `Store Error: ${error.message}` });
         }
     },
 
@@ -86,6 +88,7 @@ export const useTranscriptionStore = create<TranscriptionState>((set) => ({
         progress: 0, 
         isTranscribing: false, 
         status: '', 
+        step: 'idle',
         error: null,
         lastResult: null 
     }),

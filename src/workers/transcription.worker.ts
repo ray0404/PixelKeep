@@ -20,7 +20,7 @@ async function getTranscriber(progress_callback: any) {
         try {
             self.postMessage({ type: 'STATUS', data: 'Contacting the HF Oracle...' });
             // Use a cache-busting param to ensure we see the real network response
-            const configUrl = `https://huggingface.co/Xenova/whisper-tiny.en/resolve/main/config.json?t=${Date.now()}`;
+            const configUrl = `https://huggingface.co/Xenova/whisper-base.en/resolve/main/config.json?t=${Date.now()}`;
             const testResponse = await fetch(configUrl);
             const text = await testResponse.text();
             
@@ -34,7 +34,7 @@ async function getTranscriber(progress_callback: any) {
         }
 
         self.postMessage({ type: 'STATUS', data: 'Channeling the Oracle...' });
-        transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en', {
+        transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-base.en', {
             progress_callback,
         });
     }

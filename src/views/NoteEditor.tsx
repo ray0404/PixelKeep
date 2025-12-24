@@ -7,6 +7,7 @@ import { PixelButton } from '../components/ui/PixelButton';
 import { PixelModal } from '../components/ui/PixelModal';
 import { useAudioRecorder } from '../hooks/useAudioRecorder';
 import { useTranscriptionStore } from '../stores/useTranscriptionStore';
+import { PixelProgressBar } from '../components/ui/PixelProgressBar';
 import { cn } from '../utils/ui';
 
 export const NoteEditor: React.FC = () => {
@@ -181,12 +182,14 @@ export const NoteEditor: React.FC = () => {
                   {transcription.isTranscribing ? 'TRANSCRIBING...' : 'TRANSCRIBE AUDIO'}
               </PixelButton>
               
-              {transcription.isDownloading && (
-                 <div className="text-center text-[9px] text-text-meta pt-2">Downloading Model: {transcription.progress.toFixed(0)}%</div>
-              )}
-
-              {transcription.status && !transcription.isTranscribing && (
-                  <div className="text-center text-[9px] text-text-meta pt-2">{transcription.status}</div>
+              {(transcription.isTranscribing || transcription.step === 'complete') && (
+                <div className="pt-2">
+                  <PixelProgressBar 
+                    progress={transcription.progress} 
+                    label={transcription.step === 'downloading' ? `Downloading Oracle (Base): ${transcription.status}` : transcription.status}
+                    color={transcription.step === 'downloading' ? 'primary' : 'secondary'}
+                  />
+                </div>
               )}
 
               {transcription.error && (

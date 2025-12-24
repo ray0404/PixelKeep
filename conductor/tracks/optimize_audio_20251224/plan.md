@@ -11,10 +11,11 @@
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Processing Pipeline Optimization' (Protocol in workflow.md)
 
 ## Phase 3: UI/UX and State Management
-- [ ] Task: Update `useTranscriptionStore` to support granular status tracking (e.g., `PROCESSING_STEPS`)
-- [ ] Task: Implement `PixelProgressBar` component and integrate into `NoteEditor`
-- [ ] Task: Upgrade transcription model configuration for improved accuracy
-- [ ] Task: Integrate granular status feedback into the `NoteEditor` and `NoteDetails` views
+- [x] Task: Update `useTranscriptionStore` to support granular status tracking (e.g., `PROCESSING_STEPS`) e317bf2
+- [x] Task: Implement `PixelProgressBar` component and integrate into `NoteEditor` e317bf2
+- [x] Task: Upgrade transcription model configuration for improved accuracy e317bf2
+- [x] Task: Integrate granular status feedback into the `NoteEditor` and `NoteDetails` views e317bf2
+- [ ] Task: Conductor - User Manual Verification 'Phase 3: UI/UX and State Management' (Protocol in workflow.md)
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: UI/UX and State Management' (Protocol in workflow.md)
 
 ## Phase 4: Final Verification and Polish
