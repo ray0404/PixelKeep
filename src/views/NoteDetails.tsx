@@ -5,7 +5,7 @@ import { useSettingsStore } from '../stores/useSettingsStore';
 import { useTranscriptionStore } from '../stores/useTranscriptionStore';
 import { PixelButton } from '../components/ui/PixelButton';
 import { PixelModal } from '../components/ui/PixelModal';
-import { DecipherModal } from '../components/DecipherModal';
+import { PixelProgressBar } from '../components/ui/PixelProgressBar';
 import { Note } from '../db/db';
 import { htmlToPlainText } from '../utils/ui';
 
@@ -14,12 +14,11 @@ export const NoteDetails: React.FC = () => {
   const navigate = useNavigate();
   const { notes, setSearchQuery, getAsset } = useNoteStore();
   const settings = useSettingsStore();
-  const { reset: resetTranscription, transcribe, lastResult, isTranscribing } = useTranscriptionStore();
+  const { reset: resetTranscription, transcribe, lastResult, isTranscribing, activeNoteId, status, progress, step } = useTranscriptionStore();
   const [note, setNote] = useState<Note | null>(null);
   const [resolvedAudioUrl, setResolvedAudioUrl] = useState<string | null>(null);
   const [resolvedAudioBlob, setResolvedAudioBlob] = useState<Blob | null>(null);
 
-  const [isDecipherModalOpen, setIsDecipherModalOpen] = useState(false);
   const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(false);
 
   useEffect(() => {
@@ -36,8 +35,6 @@ export const NoteDetails: React.FC = () => {
               });
           } else {
               setResolvedAudioUrl(found.audio);
-              // Note: For non-asset audio, we can't transcribe.
-              // This could be improved by fetching the URL and creating a blob.
           }
       }
     }
@@ -49,16 +46,18 @@ export const NoteDetails: React.FC = () => {
     };
   }, [id, notes, getAsset]);
 
+  // Handle completion (Appending text)
   useEffect(() => {
-    if (lastResult && !isTranscribing && note) {
+    if (lastResult && !isTranscribing && note && activeNoteId === note.id && step === 'complete') {
         const decipheredText = `\n\n--- DECIPHERED ECHO ---\n${lastResult}`;
         if (!note.content.includes('DECIPHERED ECHO')) {
             useNoteStore.getState().updateNote(note.id, {
                 content: note.content + decipheredText
             });
+            resetTranscription(); // Reset after successful append
         }
     }
-  }, [lastResult, isTranscribing, note]);
+  }, [lastResult, isTranscribing, note, activeNoteId, step]);
 
   if (!note) return <div className="p-4 text-center">Note not found.</div>;
 
@@ -88,10 +87,10 @@ export const NoteDetails: React.FC = () => {
   };
 
   const startDeciphering = () => {
-    if (resolvedAudioBlob) {
+    if (resolvedAudioBlob && note) {
+        // Don't reset if we are just switching views, but here we are starting NEW
         resetTranscription();
-        setIsDecipherModalOpen(true);
-        transcribe(resolvedAudioBlob);
+        transcribe(resolvedAudioBlob, note.id);
     }
   };
 
@@ -100,6 +99,8 @@ export const NoteDetails: React.FC = () => {
     setIsPermissionModalOpen(false);
     startDeciphering();
   };
+
+  const isCurrentNoteTranscribing = isTranscribing && activeNoteId === note.id;
 
   return (
     <div className="p-4 space-y-6">
@@ -130,14 +131,36 @@ export const NoteDetails: React.FC = () => {
             <audio src={resolvedAudioUrl} controls className="w-full h-10" />
           </div>
           
-         {resolvedAudioBlob && <PixelButton 
-            variant="primary" 
-            className="w-full h-12 text-xs gap-2"
-            onClick={handleDecipherClick}
-          >
-            <span className="material-symbols-outlined">auto_fix_high</span>
-            DECIPHER ECHO
-          </PixelButton>}
+         {resolvedAudioBlob && !isCurrentNoteTranscribing && (
+            <div className="relative group">
+                <PixelButton 
+                    variant="primary" 
+                    className="w-full h-12 text-xs gap-2"
+                    onClick={handleDecipherClick}
+                    disabled={isTranscribing} // Disable if ANY transcription is running
+                >
+                    <span className="material-symbols-outlined">auto_fix_high</span>
+                    {isTranscribing ? 'ORACLE IS BUSY...' : 'DECIPHER ECHO'}
+                </PixelButton>
+            </div>
+         )}
+
+         {isCurrentNoteTranscribing && (
+             <div className="space-y-2 p-2 border-2 border-primary bg-primary/5">
+                 <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-bold text-primary">DECIPHERING ECHO...</span>
+                    <span className="text-[10px] text-text-light/70 animate-pulse">Running in background</span>
+                 </div>
+                 <PixelProgressBar 
+                    progress={progress} 
+                    label={status}
+                    color="secondary"
+                 />
+                 <p className="text-[9px] text-text-meta text-center">
+                    You may leave this page. The ritual will continue.
+                 </p>
+             </div>
+         )}
         </div>
       )}
 
@@ -190,11 +213,6 @@ export const NoteDetails: React.FC = () => {
           </div>
         </div>
       </PixelModal>
-
-      <DecipherModal 
-        isOpen={isDecipherModalOpen} 
-        onClose={() => setIsDecipherModalOpen(false)} 
-      />
     </div>
   );
 };

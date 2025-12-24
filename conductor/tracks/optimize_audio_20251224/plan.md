@@ -21,6 +21,8 @@
 - [x] Task: Fix app reload on file upload (Button type fix)
 - [x] Task: Fix audio persistence (addNote audio field)
 - [x] Task: Enable background transcription (Async/Parallel workflow)
+- [x] Task: Implement Global 'Ritual Complete' Toast with navigation
+- [x] Task: Add visual transcription indicators to NotesList and NoteDetails
 - [x] Task: Integrate granular status feedback into the `NoteEditor` and `NoteDetails` views e317bf2
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: UI/UX and State Management' (Protocol in workflow.md)
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: UI/UX and State Management' (Protocol in workflow.md)

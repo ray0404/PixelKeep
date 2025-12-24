@@ -4,6 +4,7 @@ import { PixelButton } from './ui/PixelButton';
 import { PixelCheckbox } from './ui/PixelCheckbox';
 import { useNoteStore } from '../stores/useNoteStore';
 import { useSettingsStore } from '../stores/useSettingsStore';
+import { useTranscriptionStore } from '../stores/useTranscriptionStore';
 import { htmlToPlainText } from '../utils/ui';
 
 interface NoteItemProps {
@@ -24,6 +25,8 @@ export const NoteItem: React.FC<NoteItemProps> = ({
 }) => {
   const { setSearchQuery } = useNoteStore();
   const settings = useSettingsStore();
+  const { isTranscribing, activeNoteId } = useTranscriptionStore();
+  const isProcessing = isTranscribing && activeNoteId === note.id;
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleCopy = (e: React.MouseEvent) => {
@@ -67,7 +70,8 @@ export const NoteItem: React.FC<NoteItemProps> = ({
           <div className="flex flex-col justify-center min-w-0 w-full cursor-pointer" onClick={() => selectionMode && onToggleSelect ? onToggleSelect(note.id) : onView(note.id)}>
             <div className="flex items-center gap-2">
               <p className="text-xs font-bold leading-tight text-primary truncate">{note.title || 'Untitled'}</p>
-              {note.audio && <span className="material-symbols-outlined text-warning text-sm">mic</span>}
+              {isProcessing && <span className="material-symbols-outlined text-secondary text-sm animate-spin">refresh</span>}
+              {!isProcessing && note.audio && <span className="material-symbols-outlined text-warning text-sm">mic</span>}
             </div>
             <p className="mt-2 text-[10px] font-normal leading-snug text-text-light/80 break-words line-clamp-2">
               {note.content.replace(/<[^>]*>?/gm, ' ')}

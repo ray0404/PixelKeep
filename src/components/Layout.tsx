@@ -7,6 +7,7 @@ import { useAuthStore } from '../stores/useAuthStore';
 import { useFolderStore } from '../stores/useFolderStore';
 import { exportData, importData, ExportFormat } from '../utils/backup';
 import { PixelModal } from './ui/PixelModal';
+import { PixelToast } from './ui/PixelToast';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -131,6 +132,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, title }) => {
           <span className="text-[10px] font-medium uppercase">Quest Log</span>
         </button>
       </nav>
+      
+      <PixelToast />
     </div>
   );
 };

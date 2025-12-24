@@ -100,7 +100,7 @@ export const NoteEditor: React.FC = () => {
   
   const handleTranscribe = () => {
     if (audioBlob) {
-      transcription.transcribe(audioBlob);
+      transcription.transcribe(audioBlob, id ? Number(id) : undefined);
     }
   }
 
@@ -245,21 +245,6 @@ export const NoteEditor: React.FC = () => {
             <span className="material-symbols-outlined">image</span>
             IMPORT FROM DEVICE
           </PixelButton>
-          <input 
-            id="camera-input" 
-            type="file" 
-            accept="image/*" 
-            capture="environment" 
-            className="hidden" 
-            onChange={handleImageUpload}
-          />
-          <input 
-            id="gallery-input" 
-            type="file" 
-            accept="image/*" 
-            className="hidden" 
-            onChange={handleImageUpload}
-          />
         </div>
       </PixelModal>
 
@@ -286,13 +271,6 @@ export const NoteEditor: React.FC = () => {
             <span className="material-symbols-outlined">upload_file</span>
             IMPORT AUDIO FILE
           </PixelButton>
-          <input 
-            id="audio-upload-input" 
-            type="file" 
-            accept="audio/*" 
-            className="hidden" 
-            onChange={handleAudioUpload}
-          />
         </div>
       </PixelModal>
 
@@ -303,6 +281,30 @@ export const NoteEditor: React.FC = () => {
           onDeselect={() => setSelectedImage(null)}
         />
       )}
+
+      {/* Hidden Inputs moved outside modals */}
+      <input 
+        id="camera-input" 
+        type="file" 
+        accept="image/*" 
+        capture="environment" 
+        className="hidden" 
+        onChange={handleImageUpload}
+      />
+      <input 
+        id="gallery-input" 
+        type="file" 
+        accept="image/*" 
+        className="hidden" 
+        onChange={handleImageUpload}
+      />
+      <input 
+        id="audio-upload-input" 
+        type="file" 
+        accept="audio/*" 
+        className="hidden" 
+        onChange={handleAudioUpload}
+      />
     </div>
   );
 };

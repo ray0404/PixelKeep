@@ -9,13 +9,14 @@ interface TranscriptionState {
     step: 'idle' | 'preparing' | 'downloading' | 'processing' | 'transcribing' | 'complete' | 'error';
     error: string | null;
     lastResult: string | null;
+    activeNoteId: number | null;
     
     setDownloading: (isDownloading: boolean) => void;
     setProgress: (progress: number) => void;
     setTranscribing: (isTranscribing: boolean) => void;
     setStatus: (status: string) => void;
     setError: (error: string | null) => void;
-    transcribe: (audioBlob: Blob) => Promise<void>;
+    transcribe: (audioBlob: Blob, noteId?: number) => Promise<void>;
     reset: () => void;
 }
 
@@ -37,6 +38,7 @@ export const useTranscriptionStore = create<TranscriptionState>((set, get) => ({
     step: 'idle',
     error: null,
     lastResult: null,
+    activeNoteId: null,
 
     setDownloading: (isDownloading) => set({ isDownloading }),
     setProgress: (progress) => set({ progress }),
@@ -44,9 +46,15 @@ export const useTranscriptionStore = create<TranscriptionState>((set, get) => ({
     setStatus: (status) => set({ status }),
     setError: (error) => set({ error }),
 
-    transcribe: async (audioBlob) => {
+    transcribe: async (audioBlob, noteId) => {
+        // Concurrency Check
+        if (get().isTranscribing) {
+            alert("The Oracle can only focus on one ritual at a time.");
+            return;
+        }
+
         clearProgressInterval();
-        set({ isTranscribing: true, step: 'preparing', status: 'Preparing the Altar...', lastResult: null, error: null });
+        set({ isTranscribing: true, activeNoteId: noteId || null, step: 'preparing', status: 'Preparing the Altar...', lastResult: null, error: null });
         try {
             if (!worker) {
                 worker = new TranscriptionWorker();
@@ -161,7 +169,8 @@ export const useTranscriptionStore = create<TranscriptionState>((set, get) => ({
             status: '', 
             step: 'idle', 
             error: null,
-            lastResult: null 
+            lastResult: null,
+            activeNoteId: null
         });
     },
 }));
