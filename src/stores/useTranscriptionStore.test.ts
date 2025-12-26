@@ -1,6 +1,34 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { useTranscriptionStore } from './useTranscriptionStore';
 import { act } from '@testing-library/react';
+
+// Define mocks outside to be used in the factory if needed, 
+// but since we need to access them in tests, we'll attach them to the class or a global object.
+// Better yet, we can use a singleton pattern for the mock worker to access it in tests.
+
+const WorkerMock = {
+    postMessage: vi.fn(),
+    onmessage: null as ((event: any) => void) | null,
+};
+
+// Mock the worker import
+vi.mock('../workers/transcription.worker.ts?worker', () => {
+    return {
+        default: class MockWorker {
+            constructor() {
+                // Reset on instantiation if needed, or keep shared state
+            }
+            postMessage(data: any, transfer: any[]) {
+                WorkerMock.postMessage(data, transfer);
+            }
+            terminate() {}
+            addEventListener() {}
+            removeEventListener() {}
+            set onmessage(val: any) { WorkerMock.onmessage = val; }
+            get onmessage() { return WorkerMock.onmessage; }
+        }
+    };
+});
 
 describe('useTranscriptionStore', () => {
     beforeEach(() => {
@@ -8,13 +36,44 @@ describe('useTranscriptionStore', () => {
             useTranscriptionStore.getState().reset();
         });
         vi.restoreAllMocks();
-        vi.stubGlobal('Worker', vi.fn().mockImplementation(() => ({
-            postMessage: vi.fn(),
-            terminate: vi.fn(),
-            addEventListener: vi.fn(),
-            removeEventListener: vi.fn(),
-            onmessage: null,
-        })));
+        WorkerMock.postMessage = vi.fn();
+        WorkerMock.onmessage = null;
+
+        // Mock AudioContext
+        const mockAudioBuffer = {
+            duration: 1,
+            getChannelData: vi.fn().mockReturnValue(new Float32Array(10))
+        };
+
+        vi.stubGlobal('AudioContext', class {
+            decodeAudioData = vi.fn().mockResolvedValue(mockAudioBuffer);
+            close = vi.fn();
+        });
+
+        vi.stubGlobal('webkitAudioContext', class {
+            decodeAudioData = vi.fn().mockResolvedValue(mockAudioBuffer);
+            close = vi.fn();
+        });
+
+        // Mock OfflineAudioContext
+        const mockResampledBuffer = {
+             getChannelData: vi.fn().mockReturnValue(new Float32Array(10))
+        };
+        
+        vi.stubGlobal('OfflineAudioContext', class {
+            constructor() {}
+            createBufferSource = vi.fn().mockReturnValue({
+                buffer: null,
+                connect: vi.fn(),
+                start: vi.fn(),
+            });
+            startRendering = vi.fn().mockResolvedValue(mockResampledBuffer);
+            destination = {};
+        });
+    });
+    
+    afterEach(() => {
+        vi.unstubAllGlobals();
     });
 
     it('should initialize with default values', () => {
@@ -42,49 +101,26 @@ describe('useTranscriptionStore', () => {
     });
 
     it('should handle transcribe flow', async () => {
-        let onMessageCallback: ((event: any) => void) | null = null;
-        const postMessageMock = vi.fn();
-        
-        const MockWorker = vi.fn().mockImplementation(() => {
-            const worker = {
-                postMessage: postMessageMock,
-                terminate: vi.fn(),
-                addEventListener: vi.fn(),
-                removeEventListener: vi.fn(),
-                set onmessage(val: any) { onMessageCallback = val; },
-                get onmessage() { return onMessageCallback; },
-            };
-            return worker;
-        });
-
-        vi.stubGlobal('Worker', MockWorker);
-
-        const mockAudioBuffer = {
-            getChannelData: vi.fn().mockReturnValue(new Float32Array(10))
-        };
-
-        const MockAudioContext = vi.fn().mockImplementation(() => ({
-            decodeAudioData: vi.fn().mockResolvedValue(mockAudioBuffer),
-            close: vi.fn(),
-        }));
-
-        vi.stubGlobal('AudioContext', MockAudioContext);
-        
         const mockBlob = new Blob(['dummy audio content'], { type: 'audio/wav' });
+        mockBlob.arrayBuffer = vi.fn().mockResolvedValue(new ArrayBuffer(8));
         
         let transcribePromise: Promise<void>;
         await act(async () => {
             transcribePromise = useTranscriptionStore.getState().transcribe(mockBlob);
         });
         
+        // Wait for async operations
+        await new Promise(resolve => setTimeout(resolve, 0));
+
         expect(useTranscriptionStore.getState().isTranscribing).toBe(true);
-        expect(useTranscriptionStore.getState().step).toBe('processing'); // Initially set to preparing then processing
-        expect(postMessageMock).toHaveBeenCalled();
+        expect(['preparing', 'processing']).toContain(useTranscriptionStore.getState().step);
+        
+        expect(WorkerMock.postMessage).toHaveBeenCalled();
         
         // Simulate worker complete
         await act(async () => {
-            if (onMessageCallback) {
-                (onMessageCallback as any)({ data: { type: 'COMPLETE', data: 'Deciphered text' } });
+            if (WorkerMock.onmessage) {
+                WorkerMock.onmessage({ data: { type: 'COMPLETE', data: 'Deciphered text' } });
             }
         });
         

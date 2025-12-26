@@ -50,7 +50,7 @@ async function getTranscriber(progress_callback: any) {
             progress_callback,
             device,
             quantized: true,
-        });
+        } as any);
     }
     return transcriber;
 }

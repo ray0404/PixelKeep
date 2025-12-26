@@ -7,6 +7,9 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       disable: process.env.NODE_ENV === 'development',
       registerType: 'autoUpdate',
       includeAssets: [
@@ -15,48 +18,20 @@ export default defineConfig({
         'mask-icon.svg',
         'nanobanana-output/*.png'
       ],
-      workbox: {
-        mode: 'development',
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-cache',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365, // <== 365 days
-              },
-              cacheableResponse: {
-                statuses: [0, 200],
-              },
-            },
-          },
-          {
-            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'gstatic-fonts-cache',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365, // <== 365 days
-              },
-              cacheableResponse: {
-                statuses: [0, 200],
-              },
-            },
-          }
-        ]
-      },
       manifest: {
+        id: 'pixelkeep-v2',
         name: 'PixelKeep',
         short_name: 'PixelKeep',
         description: 'Secure, pixel-art encrypted notes and quest log.',
         theme_color: '#1e1b4b',
         background_color: '#1e1b4b',
         display: 'standalone',
+        display_override: ['window-controls-overlay', 'standalone', 'browser'],
         orientation: 'portrait',
+        dir: 'ltr',
+        categories: ['productivity', 'utilities', 'personalization'],
+        prefer_related_applications: false,
+        related_applications: [],
         icons: [
           {
             src: 'icons/icon-192.png',
@@ -73,6 +48,22 @@ export default defineConfig({
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable'
+          }
+        ],
+        screenshots: [
+          {
+            src: 'screenshots/screenshot-desktop.png',
+            sizes: '1024x1024',
+            type: 'image/png',
+            form_factor: 'wide',
+            label: 'Encrypted Vault & Quest Log'
+          },
+          {
+            src: 'screenshots/screenshot-mobile.png',
+            sizes: '1024x1024',
+            type: 'image/png',
+            form_factor: 'narrow',
+            label: 'Mobile Note Editing'
           }
         ],
         share_target: {
