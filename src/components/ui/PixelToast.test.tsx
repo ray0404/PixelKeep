@@ -15,7 +15,11 @@ describe('PixelToast', () => {
             reset: vi.fn(),
         } as any);
 
-        render(<PixelToast />);
+        render(
+            <MemoryRouter>
+                <PixelToast />
+            </MemoryRouter>
+        );
         expect(screen.queryByText('RITUAL COMPLETE!')).not.toBeInTheDocument();
     });
 
@@ -43,7 +47,11 @@ describe('PixelToast', () => {
             reset: resetMock,
         } as any);
 
-        render(<PixelToast />);
+        render(
+            <MemoryRouter>
+                <PixelToast />
+            </MemoryRouter>
+        );
         const closeBtn = screen.getByRole('button', { name: /close/i });
         fireEvent.click(closeBtn);
         expect(resetMock).toHaveBeenCalled();

@@ -22,7 +22,7 @@ export const TaskEditor: React.FC = () => {
   // global store updates on every keystroke, which would cause expensive re-renders.
   const [title, setTitle] = useState('');
   const [time, setTime] = useState('');
-  const [completionType, setCompletionType] = useState<'at' | 'before_by'>('at');
+  const [completionType, setCompletionType] = useState<'at' | 'before_by' | 'any_time'>('at');
   const [startTime, setStartTime] = useState('');
   const [location, setLocation] = useState('');
   const [people, setPeople] = useState('');
@@ -54,7 +54,7 @@ export const TaskEditor: React.FC = () => {
     e.preventDefault();
     const taskData = { 
       title, 
-      time: time ? new Date(time).toISOString() : null, 
+      time: completionType === 'any_time' ? null : (time ? new Date(time).toISOString() : null), 
       completionType,
       startTime: completionType === 'before_by' && startTime ? new Date(startTime).toISOString() : null,
       location, 
@@ -109,6 +109,7 @@ export const TaskEditor: React.FC = () => {
           >
             <option value="at">At Time (Standard)</option>
             <option value="before_by">Before/By Time</option>
+            <option value="any_time">Any Time (No specific time)</option>
           </select>
         </label>
 

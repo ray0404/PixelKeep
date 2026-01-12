@@ -22,7 +22,7 @@ export interface Task {
   id: number;
   title: string;
   time: string | null;
-  completionType: 'at' | 'before_by';
+  completionType: 'at' | 'before_by' | 'any_time';
   startTime: string | null;
   location: string;
   people: string;

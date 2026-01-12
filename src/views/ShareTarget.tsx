@@ -13,13 +13,33 @@ export const ShareTarget: React.FC = () => {
   const { isAuthenticated } = useAuthStore();
   const { disableTaskEncryption } = useSettingsStore();
 
-  const [title, setTitle] = useState(searchParams.get('title') || '');
+  const [title, setTitle] = useState('');
   const [fileContent, setFileContent] = useState<string>('');
-  const text = searchParams.get('text') || '';
-  const url = searchParams.get('url') || '';
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    // 1. Check for stored share data from a previous redirect
+    const storedData = sessionStorage.getItem('pending_share_data');
+    if (storedData) {
+      try {
+        const parsed = JSON.parse(storedData);
+        setTitle(parsed.title || '');
+        setFileContent(parsed.fileContent || '');
+        // We don't clear it yet, in case they refresh or something, 
+        // but we'll clear it after successful save.
+      } catch (e) {
+        console.error("Failed to parse stored share data:", e);
+      }
+    } else {
+      // 2. Fallback to URL params if no stored data
+      const urlTitle = searchParams.get('title') || '';
+      const urlText = searchParams.get('text') || '';
+      const urlUrl = searchParams.get('url') || '';
+      if (urlTitle) setTitle(urlTitle);
+      if (urlText || urlUrl) setFileContent(`${urlText}${urlText && urlUrl ? '\n\n' : ''}${urlUrl}`);
+    }
+
+    // 3. Handle File Launch (PWA File Handler)
     if ('launchQueue' in window) {
       (window as any).launchQueue.setConsumer(async (launchParams: any) => {
         if (!launchParams.files.length) return;
@@ -28,7 +48,6 @@ export const ShareTarget: React.FC = () => {
         const file = await fileHandle.getFile();
         setTitle(file.name);
         
-        // For text-based files, read the content
         if (file.type.startsWith('text/') || file.name.endsWith('.md') || file.name.endsWith('.json')) {
           const content = await file.text();
           setFileContent(content);
@@ -37,19 +56,19 @@ export const ShareTarget: React.FC = () => {
         }
       });
     }
-  }, []);
+  }, [searchParams]);
 
-  const combinedNotes = `${text}${text && url ? '\n\n' : ''}${url}${ (text || url) && fileContent ? '\n\n--- FILE CONTENT ---\n' : '' }${fileContent}`;
+  const combinedNotes = fileContent;
 
   const handleSave = async () => {
     if (!disableTaskEncryption && !isAuthenticated) {
       // If encryption is ON, they MUST unlock first.
-      // Redirect to unlock but pass share data
-      const params = new URLSearchParams();
-      if (title) params.set('title', title);
-      if (text) params.set('text', text);
-      if (url) params.set('url', url);
-      navigate(`/unlock?redirect=/share-target&${params.toString()}`);
+      // Store data in sessionStorage instead of URL to avoid length limits
+      sessionStorage.setItem('pending_share_data', JSON.stringify({
+        title,
+        fileContent
+      }));
+      navigate(`/unlock?redirect=/share-target`);
       return;
     }
 
@@ -62,7 +81,8 @@ export const ShareTarget: React.FC = () => {
         alarm: { enabled: false, trigger: 0, repeat: 0 },
       }, 'root_tasks');
       
-      // Navigate to tasks after saving
+      // Success! Clear the pending data
+      sessionStorage.removeItem('pending_share_data');
       navigate('/tasks');
     } catch (e) {
       console.error("Failed to save shared task:", e);

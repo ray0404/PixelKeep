@@ -60,9 +60,21 @@ export const TaskItem: React.FC<TaskItemProps> = React.memo(({ task, nodeId, onT
 
           </p>
 
-          <div className="mt-1 space-y-1 text-[10px] text-text-meta">
+                    <div className="mt-1 space-y-1 text-[10px] text-text-meta">
 
-            {dateStr && (
+                      {task.completionType === 'any_time' && (
+
+                        <div className="flex items-center gap-2 text-secondary font-bold">
+
+                          <span className="material-symbols-outlined text-base">all_inclusive</span>
+
+                          <p>ANY TIME</p>
+
+                        </div>
+
+                      )}
+
+                      {dateStr && (
 
               <div className="flex items-center gap-2">
 

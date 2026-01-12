@@ -33,7 +33,8 @@ describe('NoteDetails', () => {
     vi.clearAllMocks();
     (useNoteStore as any).mockReturnValue({
       notes: [mockNote],
-      setSearchQuery: vi.fn()
+      setSearchQuery: vi.fn(),
+      getAsset: vi.fn().mockResolvedValue(new Blob(['test'], { type: 'audio/mpeg' }))
     });
     (useSettingsStore as any).mockReturnValue({
       includeTitleInCopy: true,
@@ -44,6 +45,9 @@ describe('NoteDetails', () => {
         reset: vi.fn()
     });
     
+    // Set a resolvedAudioBlob by making the note audio an asset path
+    mockNote.audio = 'asset:test-audio';
+
     // Mock localStorage
     const localStorageMock = {
       getItem: vi.fn().mockReturnValue(null),
@@ -57,7 +61,7 @@ describe('NoteDetails', () => {
     vi.unstubAllGlobals();
   });
 
-  it('renders audio player if audio exists', () => {
+  it('renders audio player if audio exists', async () => {
     render(
       <MemoryRouter initialEntries={['/notes/1']}>
         <Routes>
@@ -66,10 +70,10 @@ describe('NoteDetails', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByTestId('note-audio-player')).toBeInTheDocument();
+    expect(await screen.findByTestId('note-audio-player')).toBeInTheDocument();
   });
 
-  it('renders "DECIPHER ECHO" button if audio exists', () => {
+  it('renders "DECIPHER ECHO" button if audio exists', async () => {
     render(
       <MemoryRouter initialEntries={['/notes/1']}>
         <Routes>
@@ -78,10 +82,10 @@ describe('NoteDetails', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText(/DECIPHER ECHO/i)).toBeInTheDocument();
+    expect(await screen.findByText(/DECIPHER ECHO/i)).toBeInTheDocument();
   });
 
-  it('shows permission modal on first decipher click', () => {
+  it('shows permission modal on first decipher click', async () => {
     render(
       <MemoryRouter initialEntries={['/notes/1']}>
         <Routes>
@@ -90,13 +94,13 @@ describe('NoteDetails', () => {
       </MemoryRouter>
     );
 
-    const button = screen.getByText(/DECIPHER ECHO/i);
+    const button = await screen.findByText(/DECIPHER ECHO/i);
     fireEvent.click(button);
 
-    expect(screen.getByText(/Invoke the Oracle/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Invoke the Oracle/i)).toBeInTheDocument();
   });
 
-  it('shows progress bar when transcribing this note', () => {
+  it('shows progress bar when transcribing this note', async () => {
     (useTranscriptionStore as any).mockReturnValue({
         isTranscribing: true,
         activeNoteId: 1,
@@ -114,7 +118,7 @@ describe('NoteDetails', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText(/DECIPHERING ECHO/i)).toBeInTheDocument();
-    expect(screen.getByText(/Reading.../i)).toBeInTheDocument();
+    expect(await screen.findByText(/DECIPHERING ECHO/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Reading.../i)).toBeInTheDocument();
   });
 });
