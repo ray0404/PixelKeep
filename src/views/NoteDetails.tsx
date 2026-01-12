@@ -184,7 +184,7 @@ export const NoteDetails: React.FC = () => {
       <div 
         className={`note-content-display mb-6 text-xs font-normal leading-relaxed whitespace-pre-wrap break-words ${note.isMarkdownMode ? 'markdown-body' : ''}`}
         style={{ color: settings.terminalTextColor || settings.textColor }}
-        dangerouslySetInnerHTML={{ __html: note.isMarkdownMode ? (marked.parse(htmlToPlainText(note.content)) as string) : note.content }}
+        dangerouslySetInnerHTML={{ __html: note.isMarkdownMode ? (marked.parse(htmlToPlainText(note.content), { breaks: true, gfm: true }) as string) : note.content }}
       />
 
       <div className="flex flex-wrap gap-2">

@@ -7,16 +7,18 @@ export function cn(...inputs: ClassValue[]) {
 
 export function htmlToPlainText(html: string) {
   return html
-    // Remove <br> that immediately precede a closing block tag, as they are often redundant
-    .replace(/<br\s*\/?>\s*<\/(div|p|li|h[1-6])>/gi, '</$1>')
+    // Handle block element boundaries
     .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/div>|<\/li>|<\/h[1-6]>/gi, '\n')
-    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<\/(div|p|li|h[1-6])>/gi, '\n') // End of block -> newline
+    .replace(/<(div|p|li|h[1-6])[^>]*>/gi, '\n') // Start of block -> newline (crucial for first-line boundary)
+    // Strip remaining tags
     .replace(/<[^>]+>/g, '')
+    // Decode entities
     .replace(/&nbsp;/g, ' ')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&amp;/g, '&')
     .trim()
-    .replace(/\n{3,}/g, '\n\n'); // Collapse excessive newlines
+    // normalize newlines (prevent excessive gaps)
+    .replace(/\n{3,}/g, '\n\n'); 
 }
