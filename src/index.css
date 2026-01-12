@@ -62,7 +62,26 @@ body {
   font-size: var(--content-font-size);
 }
 
-/* Theme: Pixel (8-bit) Overrides */
+/* Markdown Rendering Styles */
+.markdown-body h1 { @apply text-xl font-bold mb-1 text-primary mt-2 border-b-2 border-border-light pb-1; }
+.markdown-body h2 { @apply text-lg font-bold mb-1 text-primary mt-2; }
+.markdown-body h3 { @apply text-base font-bold mb-0.5 text-primary mt-1.5; }
+.markdown-body h4 { @apply text-sm font-bold mb-0.5 text-primary mt-1.5; }
+.markdown-body h5 { @apply text-[0.55rem] font-bold mb-0.5 text-primary mt-1 uppercase; }
+.markdown-body h6 { @apply text-[0.5rem] font-bold mb-0.5 text-primary mt-1 uppercase; }
+.markdown-body p { @apply mb-1 leading-relaxed; }
+.markdown-body ul { @apply list-disc list-outside ml-5 mb-1 space-y-0 marker:text-primary; }
+.markdown-body ol { @apply list-decimal list-outside ml-5 mb-1 space-y-0 marker:text-secondary; }
+.markdown-body li { @apply pl-1; }
+.markdown-body hr { @apply border-t-2 border-dashed border-border-light my-6; }
+.markdown-body img { @apply w-full h-auto my-4 shadow-pixel-container border-4 border-border-dark bg-surface; }
+.markdown-body blockquote { @apply border-l-4 border-primary pl-4 py-1 italic my-4; background-color: rgba(74, 222, 128, 0.05); }
+.markdown-body code { @apply px-1 rounded-sm font-mono text-[0.9em]; background-color: rgba(30, 27, 75, 0.2); }
+.markdown-body pre { @apply p-4 font-mono overflow-x-auto mb-4 shadow-pixel-container-inset; background-color: rgba(30, 27, 75, 0.2); }
+.markdown-body pre code { @apply bg-transparent p-0; }
+.markdown-body a { @apply text-secondary underline hover:text-primary transition-colors; }
+
+/* Editor Alignment */
 body.theme-pixel {
   --font-pixel-body: "VT323", monospace;
 }

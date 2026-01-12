@@ -19,6 +19,8 @@ interface SettingsState {
   disableTaskEncryption: boolean;
   hasSeenEncryptionPrompt: boolean;
   defaultAlarmSound: { data: string; name: string } | null;
+  enableMarkdownFeature: boolean;
+  enableLineNumbersFeature: boolean;
   setTheme: (theme: 'Standard' | 'Pixel') => void;
   setSetting: (key: keyof Omit<SettingsState, 'setTheme' | 'setSetting'>, value: any) => void;
 }
@@ -43,6 +45,8 @@ export const useSettingsStore = create<SettingsState>()(
       disableTaskEncryption: true,
       hasSeenEncryptionPrompt: false,
       defaultAlarmSound: null,
+      enableMarkdownFeature: false,
+      enableLineNumbersFeature: false,
 
       setTheme: (theme) => set({ theme }),
       setSetting: (key, value) => set({ [key]: value } as any),

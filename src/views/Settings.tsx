@@ -222,6 +222,19 @@ export const Settings: React.FC = () => {
         </div>
       </div>
 
+      <div className="mb-6 border-2 border-border-light bg-surface p-4 shadow-pixel-container">
+        <h3 className="mb-4 text-xs uppercase text-primary font-bold border-b-2 border-border-light pb-2">Features</h3>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-text-light uppercase">Enable Markdown Mode</span>
+            <PixelCheckbox 
+              checked={settings.enableMarkdownFeature}
+              onChange={(e) => settings.setSetting('enableMarkdownFeature', e.target.checked)}
+            />
+          </div>
+        </div>
+      </div>
+
       <div className="border-2 border-border-light bg-surface p-4 shadow-pixel-container">
         <h3 className="mb-4 text-xs uppercase text-primary font-bold border-b-2 border-border-light pb-2">About</h3>
         <p className="text-[10px] text-text-light/70 leading-relaxed">

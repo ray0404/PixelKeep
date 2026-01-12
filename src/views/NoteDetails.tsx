@@ -4,15 +4,17 @@ import { useNoteStore } from '../stores/useNoteStore';
 import { useSettingsStore } from '../stores/useSettingsStore';
 import { useTranscriptionStore } from '../stores/useTranscriptionStore';
 import { PixelButton } from '../components/ui/PixelButton';
+import { PixelCheckbox } from '../components/ui/PixelCheckbox';
 import { PixelModal } from '../components/ui/PixelModal';
 import { PixelProgressBar } from '../components/ui/PixelProgressBar';
 import { Note } from '../db/db';
 import { htmlToPlainText } from '../utils/ui';
+import { marked } from 'marked';
 
 export const NoteDetails: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { notes, setSearchQuery, getAsset } = useNoteStore();
+  const { notes, setSearchQuery, getAsset, updateNote } = useNoteStore();
   const settings = useSettingsStore();
   const { reset: resetTranscription, transcribe, lastResult, isTranscribing, activeNoteId, status, progress, step } = useTranscriptionStore();
   const [note, setNote] = useState<Note | null>(null);
@@ -77,6 +79,12 @@ export const NoteDetails: React.FC = () => {
     navigate('/notes');
   };
 
+  const handleToggleMarkdown = async (checked: boolean) => {
+    if (note) {
+      await updateNote(note.id, { isMarkdownMode: checked });
+    }
+  };
+
   const handleDecipherClick = () => {
     const hasPermission = localStorage.getItem('whisper_model_permission') === 'true';
     if (!hasPermission) {
@@ -110,7 +118,16 @@ export const NoteDetails: React.FC = () => {
         </p>
         <div className="flex items-center justify-between">
           <h2 className="mb-4 text-lg font-bold text-primary">{note.title}</h2>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+             {settings.enableMarkdownFeature && (
+               <div className="flex items-center gap-2 mr-2">
+                 <span className="text-[10px] uppercase text-text-meta">MD</span>
+                 <PixelCheckbox 
+                   checked={!!note.isMarkdownMode} 
+                   onChange={(e) => handleToggleMarkdown(e.target.checked)} 
+                 />
+               </div>
+             )}
              <PixelButton variant="surface" onClick={() => navigate(`/notes/edit/${note.id}`)}>
               <span className="material-symbols-outlined">edit</span>
             </PixelButton>
@@ -165,9 +182,9 @@ export const NoteDetails: React.FC = () => {
       )}
 
       <div 
-        className="note-content-display mb-6 text-xs font-normal leading-relaxed whitespace-pre-wrap break-words"
+        className={`note-content-display mb-6 text-xs font-normal leading-relaxed whitespace-pre-wrap break-words ${note.isMarkdownMode ? 'markdown-body' : ''}`}
         style={{ color: settings.terminalTextColor || settings.textColor }}
-        dangerouslySetInnerHTML={{ __html: note.content }}
+        dangerouslySetInnerHTML={{ __html: note.isMarkdownMode ? (marked.parse(htmlToPlainText(note.content)) as string) : note.content }}
       />
 
       <div className="flex flex-wrap gap-2">

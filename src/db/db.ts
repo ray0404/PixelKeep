@@ -16,6 +16,8 @@ export interface Note {
   audio?: string; // Virtual path /secure-img/ID
   updatedAt: string;
   order?: number;
+  isMarkdownMode?: boolean;
+  showLineNumbers?: boolean;
 }
 
 export interface Task {
