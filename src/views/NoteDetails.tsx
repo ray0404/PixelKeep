@@ -182,7 +182,7 @@ export const NoteDetails: React.FC = () => {
       )}
 
       <div 
-        className={`note-content-display mb-6 text-xs font-normal leading-relaxed whitespace-pre-wrap break-words ${note.isMarkdownMode ? 'markdown-body' : ''}`}
+        className={`note-content-display mb-6 text-xs font-normal whitespace-pre-wrap break-words ${note.isMarkdownMode ? 'markdown-body' : ''}`}
         style={{ color: settings.terminalTextColor || settings.textColor }}
         dangerouslySetInnerHTML={{ __html: note.isMarkdownMode ? (marked.parse(htmlToPlainText(note.content), { breaks: true, gfm: true }) as string) : note.content }}
       />
@@ -214,7 +214,7 @@ export const NoteDetails: React.FC = () => {
           <span className="material-symbols-outlined text-6xl text-secondary">
             history_edu
           </span>
-          <p className="text-xs leading-relaxed">
+          <p className="text-xs leading-snug">
             To decipher this Echo, we must invoke the AI Oracle. This requires a one-time download of approximately <span className="text-secondary font-bold">40MB</span>.
           </p>
           <p className="text-[10px] text-text-meta italic">
