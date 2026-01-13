@@ -44,10 +44,8 @@ export const useTaskStore = create<TaskState>((set) => ({
     if (disableTaskEncryption) {
       const tasks = encryptedTasks.map(n => {
         try {
-          // Try to parse as JSON first (unencrypted)
           return JSON.parse(n.data);
         } catch (e) {
-          // If that fails, it's probably still encrypted, try to decrypt
           return decrypt(n.data, password);
         }
       }).filter(Boolean) as Task[];
@@ -83,7 +81,6 @@ export const useTaskStore = create<TaskState>((set) => ({
     const { password } = useAuthStore.getState();
     const { disableTaskEncryption } = useSettingsStore.getState();
     
-    // Only block if encryption is required but no password provided
     if (!disableTaskEncryption && !password) {
       console.error("Encryption enabled but no password available.");
       return;
@@ -101,7 +98,7 @@ export const useTaskStore = create<TaskState>((set) => ({
       notes: taskData.notes || '',
       completed: false,
       alarm: taskData.alarm || { enabled: false, trigger: 0, repeat: 0 },
-      nextAlarmTime: null, // Logic to calculate this should be here
+      nextAlarmTime: null,
       updatedAt: new Date().toISOString(),
       order: id
     };
@@ -120,7 +117,6 @@ export const useTaskStore = create<TaskState>((set) => ({
     const nodeDataToStore = disableTaskEncryption ? JSON.stringify(fsNode) : encrypt(fsNode, password!);
     await db.fs_nodes.put({ id: fsNode.id, data: nodeDataToStore });
 
-    // Incremental local update instead of full fetch
     set(state => {
       const newTasks = [...state.tasks, task];
       updateBadge(newTasks);
@@ -133,7 +129,6 @@ export const useTaskStore = create<TaskState>((set) => ({
     const { disableTaskEncryption } = useSettingsStore.getState();
     if (!password) return;
 
-    // Optimistic local update
     set(state => {
       const newTasks = state.tasks.map(t => t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t);
       updateBadge(newTasks);
@@ -146,7 +141,6 @@ export const useTaskStore = create<TaskState>((set) => ({
       try {
         oldTask = disableTaskEncryption ? JSON.parse(encryptedOld.data) : decrypt(encryptedOld.data, password);
       } catch (e) {
-        // Fallback if toggled recently
         oldTask = decrypt(encryptedOld.data, password);
       }
 
@@ -173,12 +167,10 @@ export const useTaskStore = create<TaskState>((set) => ({
           }
         }
       }
-      // Removed full fetchTasks() reload
     }
   },
 
   deleteTask: async (id, nodeId) => {
-    // Immediate local removal
     set(state => {
       const newTasks = state.tasks.filter(t => t.id !== id);
       updateBadge(newTasks);
@@ -194,7 +186,6 @@ export const useTaskStore = create<TaskState>((set) => ({
     const { disableTaskEncryption } = useSettingsStore.getState();
     if (!password) return;
 
-    // Optimistic local toggle
     set(state => {
       const newTasks = state.tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t);
       updateBadge(newTasks);

@@ -38,16 +38,12 @@ export const useFolderStore = create<FolderState>((set, get) => ({
     const encryptedNodes = await db.fs_nodes.toArray();
 
     if (disableTaskEncryption) {
-      // If task encryption is disabled, some nodes might be plaintext JSON
       const nodes: FSNode[] = [];
       const nodesToDecrypt: any[] = [];
 
       encryptedNodes.forEach(n => {
         try {
           const parsed = JSON.parse(n.data);
-          // If it parses and it's a task or folder for tasks, it might be unencrypted
-          // But we need to be careful, folders can be shared.
-          // Actually, if it's plaintext JSON, it's definitely unencrypted.
           nodes.push(parsed);
         } catch (e) {
           nodesToDecrypt.push(n);
@@ -170,7 +166,6 @@ export const useFolderStore = create<FolderState>((set, get) => ({
         if (encryptedNode) {
             const node = decrypt(encryptedNode.data, password) as FSNode;
             node.parentId = newParentId;
-            // When moving, maybe put at end of list?
             node.order = Date.now(); 
             const encryptedUpdatedNode = encrypt(node, password);
             await db.fs_nodes.put({ id, data: encryptedUpdatedNode });
@@ -185,7 +180,6 @@ export const useFolderStore = create<FolderState>((set, get) => ({
 
     for (let i = 0; i < reorderedNodes.length; i++) {
         const node = reorderedNodes[i];
-        // Only update if order changed
         node.order = i; 
         const encryptedUpdatedNode = encrypt(node, password);
         await db.fs_nodes.put({ id: node.id, data: encryptedUpdatedNode });

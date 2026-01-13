@@ -2,9 +2,10 @@ import { create } from 'zustand';
 import { db, Note, FSNode, Asset } from '../db/db';
 import { encrypt, decrypt } from '../utils/encryption';
 import { useAuthStore } from './useAuthStore';
+import DecryptionWorker from '../workers/decryption.worker.ts?worker';
 
 // Initialize the decryption worker
-const decryptionWorker = new Worker(new URL('../workers/decryption.worker.ts', import.meta.url), { type: 'module' });
+const decryptionWorker = new DecryptionWorker();
 
 interface NoteState {
   notes: Note[];
@@ -67,8 +68,7 @@ export const useNoteStore = create<NoteState>((set, get) => ({
     try {
       const encryptedNotes = await db.notes.toArray();
       
-      // Phase 1 Action B: Offload decryption to worker
-      // Using onmessage instead of temporary event listeners to match project style
+      // Worker uses synchronous CryptoJS internally, but communication is async
       decryptionWorker.onmessage = (event) => {
           const { data, error } = event.data;
           if (error) {
@@ -105,7 +105,7 @@ export const useNoteStore = create<NoteState>((set, get) => ({
       order: id
     };
 
-    // Phase 2 Action D: Optimistic UI
+    // Optimistic UI
     set((state) => ({ 
       notes: [...state.notes, note] 
     }));
