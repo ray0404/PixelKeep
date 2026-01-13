@@ -10,6 +10,7 @@ import { PixelProgressBar } from '../components/ui/PixelProgressBar';
 import { Note } from '../db/db';
 import { htmlToPlainText } from '../utils/ui';
 import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 
 export const NoteDetails: React.FC = () => {
   const { id } = useParams();
@@ -184,7 +185,13 @@ export const NoteDetails: React.FC = () => {
       <div 
         className={`note-content-display mb-6 text-xs font-normal whitespace-pre-wrap break-words ${note.isMarkdownMode ? 'markdown-body' : ''}`}
         style={{ color: settings.terminalTextColor || settings.textColor }}
-        dangerouslySetInnerHTML={{ __html: note.isMarkdownMode ? (marked.parse(htmlToPlainText(note.content), { breaks: true, gfm: true }) as string) : note.content }}
+        dangerouslySetInnerHTML={{ 
+            __html: DOMPurify.sanitize(
+                note.isMarkdownMode 
+                    ? (marked.parse(htmlToPlainText(note.content), { breaks: true, gfm: true }) as string) 
+                    : note.content
+            ) 
+        }}
       />
 
       <div className="flex flex-wrap gap-2">

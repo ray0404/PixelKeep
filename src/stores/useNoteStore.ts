@@ -3,6 +3,9 @@ import { db, Note, FSNode, Asset } from '../db/db';
 import { encrypt, decrypt } from '../utils/encryption';
 import { useAuthStore } from './useAuthStore';
 
+// Initialize the decryption worker
+const decryptionWorker = new Worker(new URL('../workers/decryption.worker.ts', import.meta.url), { type: 'module' });
+
 interface NoteState {
   notes: Note[];
   loading: boolean;
@@ -61,12 +64,30 @@ export const useNoteStore = create<NoteState>((set, get) => ({
     if (!password) return;
 
     set({ loading: true });
-    const encryptedNotes = await db.notes.toArray();
-    const notes = encryptedNotes
-      .map(n => decrypt(n.data, password))
-      .filter(Boolean) as Note[];
-    
-    set({ notes, loading: false });
+    try {
+      const encryptedNotes = await db.notes.toArray();
+      
+      // Phase 1 Action B: Offload decryption to worker
+      // Using onmessage instead of temporary event listeners to match project style
+      decryptionWorker.onmessage = (event) => {
+          const { data, error } = event.data;
+          if (error) {
+              console.error("Worker decryption error:", error);
+              set({ loading: false });
+          } else {
+              set({ notes: data as Note[], loading: false });
+          }
+      };
+
+      decryptionWorker.postMessage({ 
+        type: 'DECRYPT_NOTES_RESPONSE',
+        items: encryptedNotes, 
+        password 
+      });
+    } catch (error) {
+      console.error("Decryption trigger failed", error);
+      set({ loading: false });
+    }
   },
 
   addNote: async (title, content, tags, parentId, audio) => {
@@ -84,21 +105,32 @@ export const useNoteStore = create<NoteState>((set, get) => ({
       order: id
     };
 
-    const encryptedData = encrypt(note, password);
-    await db.notes.put({ id, data: encryptedData });
+    // Phase 2 Action D: Optimistic UI
+    set((state) => ({ 
+      notes: [...state.notes, note] 
+    }));
 
-    const fsNode: FSNode = {
-      id: `note-${id}`,
-      parentId,
-      type: 'note',
-      name: title,
-      order: id,
-      itemRefId: id
-    };
-    const encryptedNode = encrypt(fsNode, password);
-    await db.fs_nodes.put({ id: fsNode.id, data: encryptedNode });
+    try {
+      const encryptedData = encrypt(note, password);
+      await db.notes.put({ id, data: encryptedData });
 
-    await get().fetchNotes();
+      const fsNode: FSNode = {
+        id: `note-${id}`,
+        parentId,
+        type: 'note',
+        name: title,
+        order: id,
+        itemRefId: id
+      };
+      const encryptedNode = encrypt(fsNode, password);
+      await db.fs_nodes.put({ id: fsNode.id, data: encryptedNode });
+      
+    } catch (error) {
+      console.error("Failed to add note", error);
+      set((state) => ({
+        notes: state.notes.filter(n => n.id !== id)
+      }));
+    }
   },
 
   updateNote: async (id, updates) => {
@@ -112,7 +144,6 @@ export const useNoteStore = create<NoteState>((set, get) => ({
       const encryptedData = encrypt(updatedNote, password);
       await db.notes.put({ id, data: encryptedData });
 
-      // Update FSNode name if title changed
       if (updates.title) {
         const nodeId = `note-${id}`;
         const encryptedNode = await db.fs_nodes.get(nodeId);
