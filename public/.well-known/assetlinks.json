@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "app.web.pixelkeepv2.twa",
+        "sha256_cert_fingerprints": ["CF:38:F3:D5:86:6C:7C:4C:7B:7A:58:7F:54:F4:37:2D:B4:40:9F:AD:62:B9:75:5F:A6:A2:D5:8C:C7:C0:88:33"]
+      }
+    }]
